@@ -1,20 +1,27 @@
 import os
+from pathlib import Path
 from html import escape
 
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
 
 st.set_page_config(page_title="NEXUS Research Dashboard", layout="wide")
 
 
 def get_secret_value(key: str) -> str:
-        # Streamlit Cloud secrets take priority, local env is fallback.
-        if key in st.secrets:
-                return str(st.secrets.get(key, "")).strip()
-        return os.getenv(key, "").strip()
+    # Streamlit Cloud secrets take priority, local env is fallback.
+    try:
+        secret_value = st.secrets.get(key, "")
+        if str(secret_value).strip():
+            return str(secret_value).strip()
+    except Exception:
+        pass
+    return os.getenv(key, "").strip()
 
 
 def inject_styles() -> None:
