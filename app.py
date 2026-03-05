@@ -275,7 +275,7 @@ def render_freshness_banner() -> None:
 def render_master_table(summary_df: pd.DataFrame) -> None:
     st.title("NEXUS Publications Dashboard")
     st.caption("All Scopus publication types in the last 6 years. Click a name to open the profile page.")
-  render_freshness_banner()
+    render_freshness_banner()
 
     statuses = sorted(summary_df["status"].dropna().unique().tolist())
     c1, c2, c3 = st.columns([1.35, 1.15, 1.15])
