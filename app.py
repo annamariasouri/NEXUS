@@ -369,9 +369,8 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
       )
       total_count = int(chart_df["count"].sum())
       chart_df["pct"] = chart_df["count"] / total_count
-      chart_df["pct_label"] = (chart_df["pct"] * 100).round(1).astype(str) + "%"
 
-      donut_arcs = (
+      donut_chart = (
         alt.Chart(chart_df)
         .mark_arc(innerRadius=70, cornerRadius=6)
         .encode(
@@ -399,17 +398,7 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
         )
         .properties(height=320)
       )
-
-      donut_labels = (
-        alt.Chart(chart_df)
-        .mark_text(radius=105, size=12, fontWeight="bold", color="#13212e")
-        .encode(
-          theta=alt.Theta(field="count", type="quantitative"),
-          text=alt.Text("pct_label:N"),
-        )
-      )
-
-      st.altair_chart(donut_arcs + donut_labels, use_container_width=True)
+      st.altair_chart(donut_chart, use_container_width=True)
 
     st.download_button(
         label="Download this profile publications CSV",
