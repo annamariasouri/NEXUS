@@ -1,4 +1,5 @@
 from html import escape
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -20,23 +21,25 @@ def inject_styles() -> None:
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
         :root {
-          --bg-1: #f4fbff;
-          --bg-2: #fef6ec;
-          --ink: #13212e;
-          --muted: #506276;
-          --accent: #0f7b6c;
-          --accent-2: #da5b2d;
-          --card: rgba(255, 255, 255, 0.84);
-          --border: #d7e2ee;
-          --ok: #0d8f62;
-          --no: #b53b1f;
+          --bg-1: #eef7ff;
+          --bg-2: #fff6e8;
+          --bg-3: #e9fff6;
+          --ink: #112031;
+          --muted: #4d6277;
+          --accent: #0b8a78;
+          --accent-2: #d66a2b;
+          --card: rgba(255, 255, 255, 0.88);
+          --border: #d4e2ef;
+          --ok: #0b8a5d;
+          --no: #ba3d1f;
         }
 
         .stApp {
           background:
-            radial-gradient(1200px 600px at -10% -10%, rgba(15, 123, 108, 0.18), transparent 60%),
-            radial-gradient(900px 500px at 110% -10%, rgba(218, 91, 45, 0.16), transparent 55%),
-            linear-gradient(140deg, var(--bg-1), var(--bg-2));
+            radial-gradient(1300px 700px at -15% -15%, rgba(11, 138, 120, 0.2), transparent 60%),
+            radial-gradient(1000px 560px at 112% -10%, rgba(214, 106, 43, 0.18), transparent 55%),
+            radial-gradient(900px 520px at 50% 120%, rgba(0, 123, 101, 0.1), transparent 50%),
+            linear-gradient(145deg, var(--bg-1), var(--bg-2) 55%, var(--bg-3));
         }
 
         h1, h2, h3 {
@@ -62,7 +65,13 @@ def inject_styles() -> None:
           border-radius: 16px;
           padding: 14px 16px;
           backdrop-filter: blur(6px);
-          box-shadow: 0 8px 25px rgba(20, 31, 51, 0.08);
+          box-shadow: 0 12px 30px rgba(20, 31, 51, 0.09);
+          transition: transform 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .kpi-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 14px 34px rgba(14, 41, 73, 0.13);
         }
 
         .kpi-label { color: var(--muted); font-size: 0.86rem; }
@@ -91,7 +100,7 @@ def inject_styles() -> None:
           border: 1px solid var(--border);
           border-radius: 18px;
           overflow: auto;
-          box-shadow: 0 10px 28px rgba(15, 36, 64, 0.08);
+          box-shadow: 0 12px 30px rgba(15, 36, 64, 0.1);
           margin-top: 10px;
         }
 
@@ -106,7 +115,7 @@ def inject_styles() -> None:
           top: 0;
           z-index: 1;
           text-align: left;
-          background: #12253a;
+          background: linear-gradient(90deg, #12253a, #1f3d5a);
           color: #f8fbff;
           padding: 12px 14px;
           font-size: 0.9rem;
@@ -130,6 +139,22 @@ def inject_styles() -> None:
         }
 
         .name-link:hover { text-decoration: underline; }
+
+        .data-freshness {
+          background: rgba(255, 255, 255, 0.86);
+          border: 1px solid var(--border);
+          border-left: 4px solid var(--accent);
+          border-radius: 12px;
+          padding: 10px 12px;
+          margin-bottom: 12px;
+          color: var(--ink);
+          box-shadow: 0 8px 22px rgba(24, 42, 70, 0.08);
+        }
+
+        .freshness-meta {
+          color: var(--muted);
+          font-size: 0.9rem;
+        }
 
         .status-pill {
           display: inline-block;
@@ -228,9 +253,29 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     return summary_df, publications_df
 
 
+  def format_updated_time(path: Path) -> str:
+    timestamp = datetime.fromtimestamp(path.stat().st_mtime)
+    return timestamp.strftime("%d %b %Y, %H:%M")
+
+
+  def render_freshness_banner() -> None:
+    summary_updated = format_updated_time(SUMMARY_PATH)
+    pubs_updated = format_updated_time(PUBLICATIONS_PATH)
+    st.markdown(
+      f"""
+      <div class="data-freshness">
+        <div><strong>Data freshness:</strong> outputs are loaded from the latest generated CSV files.</div>
+        <div class="freshness-meta">Summary updated: {summary_updated} | Publications updated: {pubs_updated} | Weekly automation: Monday 05:00 UTC</div>
+      </div>
+      """,
+      unsafe_allow_html=True,
+    )
+
+
 def render_master_table(summary_df: pd.DataFrame) -> None:
     st.title("NEXUS Publications Dashboard")
     st.caption("All Scopus publication types in the last 6 years. Click a name to open the profile page.")
+  render_freshness_banner()
 
     statuses = sorted(summary_df["status"].dropna().unique().tolist())
     c1, c2, c3 = st.columns([1.35, 1.15, 1.15])
@@ -329,6 +374,7 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
 
     st.title(f"{person['name']} - Profile")
     st.caption("All Scopus publications in the last 6 years")
+    render_freshness_banner()
 
     st.markdown(
         f"""
