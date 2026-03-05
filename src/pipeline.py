@@ -2,6 +2,7 @@ import argparse
 import datetime as dt
 import os
 import re
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import pandas as pd
@@ -20,8 +21,8 @@ class ScopusClient:
         entries: List[Dict] = []
         start = 0
 
-        # Query journals only at source type level and enforce the year at API level.
-        query = f"ORCID({orcid}) AND PUBYEAR > {min_year - 1} AND SRCTYPE(j)"
+        # Fetch all publication types and enforce year filter at API level.
+        query = f"ORCID({orcid}) AND PUBYEAR > {min_year - 1}"
 
         while True:
             params = {
@@ -90,12 +91,28 @@ def is_journal(entry: Dict) -> bool:
     return aggregation_type == "journal"
 
 
+def normalize_publication_type(entry: Dict) -> str:
+    value = str(entry.get("prism:aggregationType", "")).strip().lower()
+    mapping = {
+        "journal": "Journal",
+        "conference proceeding": "Conference",
+        "book": "Book",
+        "book series": "Book Series",
+        "trade journal": "Trade Journal",
+    }
+    return mapping.get(value, value.title() if value else "Unknown")
+
+
 def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
     publication_rows: List[Dict] = []
     summary_rows: List[Dict] = []
 
     for _, row in input_df.iterrows():
         name = str(row.get("Name", "")).strip()
+        department = str(row.get("Department ", "")).strip()
+        email = str(row.get("Email", "")).strip()
+        telephone = str(row.get("Telephone", "")).strip()
+        rank = str(row.get("Rank ", "")).strip()
         raw_orcid = str(row.get("ORCID", ""))
         orcid = normalize_orcid(raw_orcid)
 
@@ -106,6 +123,10 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
             summary_rows.append(
                 {
                     "name": name,
+                    "department": department,
+                    "email": email,
+                    "telephone": telephone,
+                    "rank": rank,
                     "orcid": raw_orcid,
                     "journal_publications_last_6_years": 0,
                     "recent_3_articles": "",
@@ -121,6 +142,10 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
             summary_rows.append(
                 {
                     "name": name,
+                    "department": department,
+                    "email": email,
+                    "telephone": telephone,
+                    "rank": rank,
                     "orcid": orcid,
                     "journal_publications_last_6_years": 0,
                     "recent_3_articles": "",
@@ -135,42 +160,57 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
             year = parse_year(entry)
             if year < min_year:
                 continue
-            if not is_journal(entry):
-                continue
 
             title = str(entry.get("dc:title", "")).strip()
-            journal = str(entry.get("prism:publicationName", "")).strip()
+            publication_type = normalize_publication_type(entry)
+            source_title = str(entry.get("prism:publicationName", "")).strip()
             doi = str(entry.get("prism:doi", "")).strip()
             eid = str(entry.get("eid", "")).strip()
             cover_date = str(entry.get("prism:coverDate", "")).strip()
+            is_journal_pub = is_journal(entry)
 
             pub_row = {
                 "name": name,
+                "department": department,
+                "email": email,
+                "telephone": telephone,
+                "rank": rank,
                 "orcid": orcid,
                 "title": title,
-                "journal": journal,
+                "publication_type": publication_type,
+                "is_journal": is_journal_pub,
+                "source_title": source_title,
                 "year": year,
                 "cover_date": cover_date,
                 "doi": doi,
                 "eid": eid,
             }
-            publication_rows.append(pub_row)
             person_pubs.append(pub_row)
 
+        person_pubs = list({
+            (item.get("eid") or f"{item.get('title')}|{item.get('year')}|{item.get('source_title')}"): item
+            for item in person_pubs
+        }.values())
+        publication_rows.extend(person_pubs)
         person_pubs.sort(key=lambda x: (x.get("year", 0), x.get("cover_date", "")), reverse=True)
         recent = person_pubs[:3]
         recent_display = " | ".join([
             f"{item.get('year', '')}: {item.get('title', '')}" for item in recent
         ])
-        count = len(person_pubs)
+        journal_count = sum(1 for item in person_pubs if item.get("is_journal", False))
 
         summary_rows.append(
             {
                 "name": name,
+                "department": department,
+                "email": email,
+                "telephone": telephone,
+                "rank": rank,
                 "orcid": orcid,
-                "journal_publications_last_6_years": count,
+                "total_publications_last_6_years": len(person_pubs),
+                "journal_publications_last_6_years": journal_count,
                 "recent_3_articles": recent_display,
-                "status": "fulfills requirements" if count >= 3 else "does not fulfill requirements",
+                "status": "fulfills requirements" if journal_count >= 3 else "does not fulfill requirements",
                 "notes": "",
             }
         )
@@ -202,7 +242,8 @@ def run_pipeline(input_path: str, output_dir: str, api_key: str) -> None:
 
 
 if __name__ == "__main__":
-    load_dotenv()
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    load_dotenv(dotenv_path=env_path)
 
     parser = argparse.ArgumentParser(description="Fetch Scopus publications and build summary tables.")
     parser.add_argument(

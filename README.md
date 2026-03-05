@@ -1,14 +1,23 @@
 # NEXUS Scopus Publications Tracker
 
-This project fetches Scopus journal publications for ORCIDs listed in `Full timers ORCID.csv`, limited to the last 6 years, then creates:
+This project fetches **all Scopus publication types** for ORCIDs listed in `Full timers ORCID.csv`, limited to the last 6 years, then creates:
 
-- `outputs/publications_raw.csv` (all qualifying records)
-- `outputs/summary.csv` (one row per person with status)
+- `outputs/publications_raw.csv` (all publication records: journal, conference, book, etc.)
+- `outputs/summary.csv` (one row per person with profile details and status)
 
-Status logic:
+Status logic (for requirement tracking):
 
-- `fulfills requirements`: at least 3 journal publications in last 6 years
+- `fulfills requirements`: at least 3 **journal** publications in last 6 years
 - `does not fulfill requirements`: fewer than 3
+
+## Dashboard Experience
+
+- Main table: modern summary dashboard with filters and clickable names.
+- Profile page: clicking a name opens a dynamic profile with:
+	- Name, department, rank, email, telephone, ORCID
+	- All publications in the last 6 years
+	- Columns: title, type, source (journal/conference/book), year, DOI
+	- Per-profile CSV download
 
 ## Security and Access
 
@@ -30,7 +39,6 @@ pip install -r requirements.txt
 
 ```env
 SCOPUS_API_KEY=...
-APP_ACCESS_PASSWORD=...
 ```
 
 4. Run data pipeline:
@@ -62,5 +70,5 @@ Set this secret in repository settings:
 ## Notes
 
 - ORCID values are normalized automatically (supports raw ORCID and URL forms).
-- Journal filter uses Scopus source type and aggregation type checks.
+- Publication type is normalized from Scopus aggregation type.
 - If Scopus API returns errors for an author, the summary will include the error in `notes`.
