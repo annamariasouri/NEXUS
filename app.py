@@ -253,22 +253,22 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     return summary_df, publications_df
 
 
-  def format_updated_time(path: Path) -> str:
+def format_updated_time(path: Path) -> str:
     timestamp = datetime.fromtimestamp(path.stat().st_mtime)
     return timestamp.strftime("%d %b %Y, %H:%M")
 
 
-  def render_freshness_banner() -> None:
+def render_freshness_banner() -> None:
     summary_updated = format_updated_time(SUMMARY_PATH)
     pubs_updated = format_updated_time(PUBLICATIONS_PATH)
     st.markdown(
-      f"""
-      <div class="data-freshness">
-        <div><strong>Data freshness:</strong> outputs are loaded from the latest generated CSV files.</div>
-        <div class="freshness-meta">Summary updated: {summary_updated} | Publications updated: {pubs_updated} | Weekly automation: Monday 05:00 UTC</div>
-      </div>
-      """,
-      unsafe_allow_html=True,
+        f"""
+        <div class="data-freshness">
+          <div><strong>Data freshness:</strong> outputs are loaded from the latest generated CSV files.</div>
+          <div class="freshness-meta">Summary updated: {summary_updated} | Publications updated: {pubs_updated} | Weekly automation: Monday 05:00 UTC</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
