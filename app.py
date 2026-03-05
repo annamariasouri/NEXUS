@@ -2,6 +2,7 @@ from html import escape
 from pathlib import Path
 from urllib.parse import quote_plus
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -357,6 +358,44 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
         person_pubs = person_pubs[person_pubs["title"].str.contains(title_query, case=False, na=False)]
     if type_filter:
         person_pubs = person_pubs[person_pubs["publication_type"].isin(type_filter)]
+
+    if not person_pubs.empty:
+      st.subheader("Publication Mix by Category")
+      chart_df = (
+        person_pubs["publication_type"]
+        .value_counts()
+        .rename_axis("publication_type")
+        .reset_index(name="count")
+      )
+
+      donut_chart = (
+        alt.Chart(chart_df)
+        .mark_arc(innerRadius=70, cornerRadius=6)
+        .encode(
+          theta=alt.Theta(field="count", type="quantitative"),
+          color=alt.Color(
+            field="publication_type",
+            type="nominal",
+            legend=alt.Legend(title="Category", orient="right"),
+            scale=alt.Scale(
+              range=[
+                "#0f7b6c",
+                "#da5b2d",
+                "#1e4f9b",
+                "#be8f00",
+                "#7a3fa0",
+                "#2d8fb3",
+              ]
+            ),
+          ),
+          tooltip=[
+            alt.Tooltip("publication_type:N", title="Category"),
+            alt.Tooltip("count:Q", title="Count"),
+          ],
+        )
+        .properties(height=320)
+      )
+      st.altair_chart(donut_chart, use_container_width=True)
 
     st.download_button(
         label="Download this profile publications CSV",
