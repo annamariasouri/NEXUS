@@ -1,6 +1,6 @@
 # NEXUS Scopus Publications Tracker
 
-This project fetches **all Scopus publication types** for ORCIDs listed in `Full timers ORCID.csv`, limited to the last 6 years, then creates:
+This project fetches **all Scopus publication types** for people listed in `Full timers ORCID.csv`, limited to the last 6 years, then creates:
 
 - `outputs/publications_raw.csv` (all publication records: journal, conference, book, etc.)
 - `outputs/summary.csv` (one row per person with profile details and status)
@@ -69,6 +69,7 @@ Set this secret in repository settings:
 
 ## Notes
 
+- Lookup priority is ORCID first; if ORCID returns no results and `Scopus ID` exists, Scopus ID is used as fallback.
 - ORCID values are normalized automatically (supports raw ORCID and URL forms).
 - Publication type is normalized from Scopus aggregation type.
 - If Scopus API returns errors for an author, the summary will include the error in `notes`.

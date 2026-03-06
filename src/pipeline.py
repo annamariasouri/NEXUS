@@ -17,12 +17,9 @@ class ScopusClient:
         self.api_key = api_key
         self.timeout = timeout
 
-    def search_by_orcid(self, orcid: str, min_year: int, count: int = 25) -> List[Dict]:
+    def search(self, query: str, count: int = 25) -> List[Dict]:
         entries: List[Dict] = []
         start = 0
-
-        # Fetch all publication types and enforce year filter at API level.
-        query = f"ORCID({orcid}) AND PUBYEAR > {min_year - 1}"
 
         while True:
             params = {
@@ -59,6 +56,16 @@ class ScopusClient:
 
         return entries
 
+    def search_by_orcid(self, orcid: str, min_year: int, count: int = 25) -> List[Dict]:
+        # Fetch all publication types and enforce year filter at API level.
+        query = f"ORCID({orcid}) AND PUBYEAR > {min_year - 1}"
+        return self.search(query=query, count=count)
+
+    def search_by_scopus_id(self, scopus_id: str, min_year: int, count: int = 25) -> List[Dict]:
+        # AU-ID is the Scopus Author ID query field.
+        query = f"AU-ID({scopus_id}) AND PUBYEAR > {min_year - 1}"
+        return self.search(query=query, count=count)
+
 
 def normalize_orcid(value: str) -> str:
     if value is None:
@@ -68,6 +75,21 @@ def normalize_orcid(value: str) -> str:
     if not match:
         return ""
     return match.group(1).upper()
+
+
+def normalize_scopus_id(value: str) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip().replace("\u00a0", " ")
+    # Guard against CSV numeric parsing artifacts like "35490355500.0".
+    if re.fullmatch(r"\d+\.0+", text):
+        text = text.split(".", 1)[0]
+    digits = re.sub(r"\D", "", text)
+    return digits
+
+
+def has_recent_results(entries: List[Dict], min_year: int) -> bool:
+    return any(parse_year(entry) >= min_year for entry in entries)
 
 
 def parse_year(entry: Dict) -> int:
@@ -114,12 +136,14 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
         telephone = str(row.get("Telephone", "")).strip()
         rank = str(row.get("Rank ", "")).strip()
         raw_orcid = str(row.get("ORCID", ""))
+        raw_scopus_id = str(row.get("Scopus ID", ""))
         orcid = normalize_orcid(raw_orcid)
+        scopus_id = normalize_scopus_id(raw_scopus_id)
 
         if not name:
             continue
 
-        if not orcid:
+        if not orcid and not scopus_id:
             summary_rows.append(
                 {
                     "name": name,
@@ -128,32 +152,87 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                     "telephone": telephone,
                     "rank": rank,
                     "orcid": raw_orcid,
+                    "scopus_id": raw_scopus_id,
                     "journal_publications_last_6_years": 0,
                     "recent_3_articles": "",
                     "status": "does not fulfill requirements",
-                    "notes": "Invalid ORCID format",
+                    "notes": "Missing/invalid ORCID and Scopus ID",
                 }
             )
             continue
 
-        try:
-            entries = client.search_by_orcid(orcid=orcid, min_year=min_year)
-        except requests.HTTPError as exc:
-            summary_rows.append(
-                {
-                    "name": name,
-                    "department": department,
-                    "email": email,
-                    "telephone": telephone,
-                    "rank": rank,
-                    "orcid": orcid,
-                    "journal_publications_last_6_years": 0,
-                    "recent_3_articles": "",
-                    "status": "does not fulfill requirements",
-                    "notes": f"Scopus API error: {exc}",
-                }
-            )
-            continue
+        entries: List[Dict] = []
+        identifier_source = ""
+        notes = ""
+
+        if orcid:
+            try:
+                entries = client.search_by_orcid(orcid=orcid, min_year=min_year)
+                identifier_source = "orcid"
+            except requests.HTTPError as exc:
+                summary_rows.append(
+                    {
+                        "name": name,
+                        "department": department,
+                        "email": email,
+                        "telephone": telephone,
+                        "rank": rank,
+                        "orcid": orcid,
+                        "scopus_id": scopus_id,
+                        "journal_publications_last_6_years": 0,
+                        "recent_3_articles": "",
+                        "status": "does not fulfill requirements",
+                        "notes": f"Scopus API error (ORCID): {exc}",
+                    }
+                )
+                continue
+
+            # If ORCID has no recent matches, fallback to Scopus ID when available.
+            if not has_recent_results(entries, min_year=min_year) and scopus_id:
+                try:
+                    entries = client.search_by_scopus_id(scopus_id=scopus_id, min_year=min_year)
+                    identifier_source = "scopus_id_fallback_no_orcid_results"
+                    notes = "No ORCID results; used Scopus ID fallback"
+                except requests.HTTPError as exc:
+                    summary_rows.append(
+                        {
+                            "name": name,
+                            "department": department,
+                            "email": email,
+                            "telephone": telephone,
+                            "rank": rank,
+                            "orcid": orcid,
+                            "scopus_id": scopus_id,
+                            "journal_publications_last_6_years": 0,
+                            "recent_3_articles": "",
+                            "status": "does not fulfill requirements",
+                            "notes": f"Scopus API error (Scopus ID fallback): {exc}",
+                        }
+                    )
+                    continue
+        else:
+            try:
+                entries = client.search_by_scopus_id(scopus_id=scopus_id, min_year=min_year)
+                identifier_source = "scopus_id"
+            except requests.HTTPError as exc:
+                summary_rows.append(
+                    {
+                        "name": name,
+                        "department": department,
+                        "email": email,
+                        "telephone": telephone,
+                        "rank": rank,
+                        "orcid": orcid,
+                        "scopus_id": scopus_id,
+                        "journal_publications_last_6_years": 0,
+                        "recent_3_articles": "",
+                        "status": "does not fulfill requirements",
+                        "notes": f"Scopus API error (Scopus ID): {exc}",
+                    }
+                )
+                continue
+
+        normalized_orcid_for_output = orcid
 
         person_pubs: List[Dict] = []
         for entry in entries:
@@ -175,7 +254,9 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "email": email,
                 "telephone": telephone,
                 "rank": rank,
-                "orcid": orcid,
+                "orcid": normalized_orcid_for_output,
+                "scopus_id": scopus_id,
+                "identifier_source": identifier_source,
                 "title": title,
                 "publication_type": publication_type,
                 "is_journal": is_journal_pub,
@@ -206,12 +287,14 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "email": email,
                 "telephone": telephone,
                 "rank": rank,
-                "orcid": orcid,
+                "orcid": normalized_orcid_for_output,
+                "scopus_id": scopus_id,
+                "identifier_source": identifier_source,
                 "total_publications_last_6_years": len(person_pubs),
                 "journal_publications_last_6_years": journal_count,
                 "recent_3_articles": recent_display,
                 "status": "fulfills requirements" if journal_count >= 3 else "does not fulfill requirements",
-                "notes": "",
+                "notes": notes,
             }
         )
 
@@ -228,7 +311,7 @@ def run_pipeline(input_path: str, output_dir: str, api_key: str) -> None:
     # Last 6 years including current year, e.g. 2021-2026 when current year is 2026.
     min_year = now_year - 5
 
-    input_df = pd.read_csv(input_path)
+    input_df = pd.read_csv(input_path, dtype=str).fillna("")
     client = ScopusClient(api_key=api_key)
     publications_df, summary_df = build_rows(input_df=input_df, client=client, min_year=min_year)
 
@@ -249,7 +332,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input",
         default="Full timers ORCID.csv",
-        help="Path to input CSV with Name and ORCID columns.",
+        help="Path to input CSV with Name and ORCID columns and optional Scopus ID column.",
     )
     parser.add_argument(
         "--output-dir",
