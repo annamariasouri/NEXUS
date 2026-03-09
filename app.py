@@ -174,9 +174,9 @@ def inject_styles() -> None:
         }
 
         .status-no {
-          color: var(--no);
-          background: #fff0ec;
-          border-color: #f8c9bb;
+          color: #a85a12;
+          background: #fff4e8;
+          border-color: #f2c89a;
         }
 
         .articles-cell, .title-cell {
@@ -241,6 +241,12 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     summary_df["name"] = summary_df["name"].fillna("").astype(str)
     summary_df["orcid"] = summary_df["orcid"].fillna("").astype(str)
     summary_df["status"] = summary_df["status"].fillna("does not fulfill requirements").astype(str)
+    summary_df["status"] = summary_df["status"].replace(
+      {
+        "fulfills requirements": "Faculty sufficiency",
+        "does not fulfill requirements": "Research committee review",
+      }
+    )
     summary_df["recent_3_articles"] = summary_df["recent_3_articles"].fillna("").astype(str)
     summary_df["journal_publications_last_6_years"] = pd.to_numeric(
         summary_df.get("journal_publications_last_6_years", 0), errors="coerce"
@@ -290,17 +296,32 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     st.caption("All Scopus publication types in the last 6 years. Click a name to open the profile page.")
     render_freshness_banner()
 
-    statuses = sorted(summary_df["status"].dropna().unique().tolist())
+    preferred_status_order = ["Faculty sufficiency", "Research committee review"]
+    present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
+    other_statuses = sorted([s for s in summary_df["status"].dropna().unique().tolist() if s not in present_statuses])
+    statuses = present_statuses + other_statuses
     research_fields = sorted([f for f in summary_df["research_field"].dropna().unique().tolist() if f.strip()])
-    c1, c2, c3, c4 = st.columns([1.2, 1.0, 1.0, 1.0])
+    c1, c2 = st.columns([1.5, 1.5])
     with c1:
         name_query = st.text_input("Search name", placeholder="Type a faculty name...")
     with c2:
-        status_filter = st.multiselect("Status", options=statuses, default=statuses)
-    with c3:
-      field_filter = st.multiselect("Research Field", options=research_fields, default=research_fields)
-    with c4:
         min_count = st.slider("Min journal count", min_value=0, max_value=40, value=0)
+
+    st.markdown("**Status**")
+    status_selection: dict[str, bool] = {}
+    status_cols = st.columns(max(1, min(3, len(statuses))))
+    for idx, status in enumerate(statuses):
+      with status_cols[idx % len(status_cols)]:
+        status_selection[status] = st.checkbox(status, value=True, key=f"status_{status}")
+    status_filter = [status for status, is_selected in status_selection.items() if is_selected]
+
+    st.markdown("**Research Field**")
+    field_selection: dict[str, bool] = {}
+    field_cols = st.columns(max(1, min(4, len(research_fields))))
+    for idx, field in enumerate(research_fields):
+      with field_cols[idx % len(field_cols)]:
+        field_selection[field] = st.checkbox(field, value=True, key=f"field_{field}")
+    field_filter = [field for field, is_selected in field_selection.items() if is_selected]
 
     filtered = summary_df.copy()
     if name_query:
@@ -319,7 +340,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
         f"""
         <div class="kpi-wrap">
           <div class="kpi-card"><div class="kpi-label">People Visible</div><div class="kpi-value">{len(filtered)}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Fulfills Requirements</div><div class="kpi-value">{int((filtered['status'] == 'fulfills requirements').sum())}</div></div>
+          <div class="kpi-card"><div class="kpi-label">Faculty Sufficiency</div><div class="kpi-value">{int((filtered['status'] == 'Faculty sufficiency').sum())}</div></div>
           <div class="kpi-card"><div class="kpi-label">Total Publications Visible</div><div class="kpi-value">{int(filtered['total_publications_last_6_years'].sum())}</div></div>
           <div class="kpi-card"><div class="kpi-label">Journal Publications Visible</div><div class="kpi-value">{int(filtered['journal_publications_last_6_years'].sum())}</div></div>
         </div>
@@ -337,7 +358,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     rows_html = []
     for _, row in filtered.iterrows():
         status_value = row["status"]
-        status_class = "status-ok" if status_value == "fulfills requirements" else "status-no"
+        status_class = "status-ok" if status_value == "Faculty sufficiency" else "status-no"
         encoded_orcid = quote_plus(str(row["orcid"]))
         rows_html.append(
             "".join(
