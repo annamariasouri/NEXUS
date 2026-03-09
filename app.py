@@ -184,15 +184,9 @@ def inject_styles() -> None:
           white-space: normal;
         }
 
-        /* Make checkbox accents green in Streamlit's BaseWeb checkbox controls. */
-        .stCheckbox [data-baseweb="checkbox"] > div:first-child {
-          border-color: #0b8a5d;
-        }
-
-        .stCheckbox [data-baseweb="checkbox"] input:checked + div,
-        .stCheckbox [data-baseweb="checkbox"] input:indeterminate + div {
-          background-color: #0b8a5d;
-          border-color: #0b8a5d;
+        /* Keep labels normal, color only the native checkbox tick/control. */
+        .stCheckbox input[type="checkbox"] {
+          accent-color: #0b8a5d;
         }
 
         @media (max-width: 900px) {
@@ -348,7 +342,10 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
       key_suffix = re.sub(r"\W+", "_", group_name.lower()).strip("_")
       with group_cols[idx]:
         st.markdown(f"**{group_name}**")
-        select_all = st.checkbox("Select all", value=True, key=f"field_group_all_{key_suffix}")
+        if len(available_items) > 1:
+          select_all = st.checkbox("Select all", value=True, key=f"field_group_all_{key_suffix}")
+        else:
+          select_all = True
         for field in available_items:
           field_key = re.sub(r"\W+", "_", field.lower()).strip("_")
           field_selection[field] = st.checkbox(
