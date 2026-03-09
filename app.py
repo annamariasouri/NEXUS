@@ -184,20 +184,26 @@ def inject_styles() -> None:
           white-space: normal;
         }
 
-        /* Keep labels normal, color only the checkbox box/tick. */
-        .stCheckbox label[data-baseweb="checkbox"] > div:first-of-type {
+        /* Keep label text normal and style only the checkbox control. */
+        .stCheckbox [role="checkbox"] {
           border-color: #0b8a5d !important;
         }
 
-        .stCheckbox label[data-baseweb="checkbox"] input:checked + div {
+        .stCheckbox [role="checkbox"][aria-checked="true"] {
           background-color: #0b8a5d !important;
           border-color: #0b8a5d !important;
         }
 
-        .stCheckbox label[data-baseweb="checkbox"] input:checked + div svg,
-        .stCheckbox label[data-baseweb="checkbox"] input:checked + div path {
+        .stCheckbox [role="checkbox"] svg,
+        .stCheckbox [role="checkbox"] path {
           fill: #ffffff !important;
           stroke: #ffffff !important;
+        }
+
+        .stCheckbox label,
+        .stCheckbox label span,
+        .stCheckbox label p {
+          background: transparent !important;
         }
 
         @media (max-width: 900px) {
