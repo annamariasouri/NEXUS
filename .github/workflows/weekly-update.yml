@@ -11,6 +11,8 @@ permissions:
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    env:
+      SCOPUS_API_KEY: ${{ secrets.SCOPUS_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,9 +25,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Validate SCOPUS_API_KEY secret
+        run: |
+          if [ -z "${SCOPUS_API_KEY}" ]; then
+            echo "SCOPUS_API_KEY is not configured for this repository/workflow context."
+            echo "Go to Settings > Secrets and variables > Actions and add repository secret SCOPUS_API_KEY."
+            exit 1
+          fi
+
       - name: Run pipeline
-        env:
-          SCOPUS_API_KEY: ${{ secrets.SCOPUS_API_KEY }}
         run: python src/pipeline.py --input "Full timers ORCID.csv" --output-dir outputs
 
       - name: Commit and push updated outputs

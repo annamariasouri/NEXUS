@@ -1,32 +1,31 @@
-﻿Name,Department ,Email,Telephone,Rank ,ORCID,Scopus ID
-Antonaras Alexandros,Management ,antonaras.a@unic.ac.cy,99616617,Associate Professor,0000-0002-5701-3369,
-Charitou Melita,"Accounting, Economics & Finance",charitou.m@unic.ac.cy,99693251,Associate Professor,0000-0002-3232-4590,
-Demetriou Marlen,Management ,demetriou.m@unic.ac.cy,99698708,Associate Professor,0000-0003-1329-6042,35490355500
-Efthymiou Leonidas,"Accounting, Economics & Finance",efthymiou.l@unic.ac.cy,99327945,Associate Professor,0000-0001-8099-5885,
-Epaminonda Epaminondas,Management ,epaminonda.n@unic.ac.cy; ,99493991,Associate Professor,0000-0001-9623-0414,
-Georgiou Ifigenia,"Accounting, Economics & Finance",georgiou.i@unic.ac.cy,99660014,Associate Professor,0000-0003-1753-3455,
-Giaglis George,Digital Innovation,giaglis.g@unic.ac.cy,X,Professor,0000-0002-7824-633X,
-Hadjidakis Spyros,"Accounting, Economics & Finance",hadjidakis.s@unic.ac.cy,99544300,Associate Professor,0000-0002-4360-5363,56410796700
-Iacovidou Melpo,Accounting,iacovidou.m@unic.ac.cy,96357353,Assistant Professor,0000-0003-0474-2303,
-Iosif Elias,"Accounting, Economics & Finance",iosif.e@unic.ac.cy,99219539,Assistant Professor,0000-0002-4694-8556,
-Kartakoullis Nicos,Management ,kartakoullis.n@unic.ac.cy,99626201,Professor,0000-0003-4118-2042. ,25723384500
-Kaufmann Hans-Rudiguer,Management ,kaufmann.r@unic.ac.cy,99026639,Professor,0000-0002-9005-7988,
-Kogetsidis Harry,Management ,kogetsidis.h@unic.ac.cy,99537085,Associate Lecturer,0000-0001-9292-9375,
-Komodromos Marcos,Management ,komodromos.m@unic.ac.cy,X,Professor,0000-0002-2910-6541,
-Kokkinaki Angelika,Management ,kokkinaki.a@unic.ac.cy,99449620,Professor,0000-0002-5985-8082,
-Ktoridou Despo,Management ,ktoridou.d@unic.ac.cy,99638171, Professor,https://orcid.org/0000-0002-1675-6748,16033181300
-Lois Petros,"Accounting, Economics & Finance",lois.p@unic.ac.cy,99407577, Professor,0000-0002-8047-7559,
-Louca Soulla,Digital Innovation,louca.s@unic.ac.cy,99586857,Professor,0000-0001-5280-2775,
-Makridakis Spyros,Digital Innovation,makridakis.s@unic.ac.cy,99545740,Professor,0000-0003-2519-8095,
-Michailidis Maria,Management ,michailidis.m@unic.ac.cy,99585569,Professor,0000-0003-1315-225X,
-Morphi Katerina,Accounting,morphi.k@unic.ac.cy,96444408,Lecturer,0000-0001-8230-6377,58804931700
-Morphitou Ria,Management ,morphitou.r@unic.ac.cy,99648692,Associate Lecturer,0000-0001-6509-734X,55343991100
-Orphanidou Yianna,Management ,orphanidou.y@unic.ac.cy,99616820,Associate Lecturer,0000-0003-1933-4409,
-Panayiotou George,Management ,panayiotou.g@unic.ac.cy,99647137,Associate Lecturer,https://orcid.org/0000-0001-7528-9281,57221785262
-Papasolomou Ioanna,Management ,papasolomou.i@unic.ac.cy,99518345,Professor,0000-0003-2738-3796,
-Sapuric Svetlana,"Accounting, Economics & Finance",sapuric.s@unic.ac.cy,99432839,Associate Professor,0000-0002-7797-4220,
-Themistocleous Marinos,Digital Innovation,themistocleous.m@unic.ac.cy,96265628,Professor,0000-0002-6904-9692 ,
-Thrassou Alkis,Management ,thrassou.a@unic.ac.cy,99582751,Professor,0000-0001-9409-6602,
-Tsakiris Theodoros,Management ,tsakiris.t@unic.ac.cy,97638533,Professor,https://orcid.org/0000-0002-1380-2710,
-Tsangari Haritini,"Accounting, Economics & Finance",tsangari.h@unic.ac.cy,99547157, Professor,0000-0002-0074-6318,
-Vrontis Demetris,Management ,vrontis.d@unic.ac.cy,X,Professor,0000-0001-7570-6241,
+﻿Name,Department ,Email,Telephone,Rank ,ORCID,Scopus ID,Research Field
+Antonaras Alexandros,Management ,antonaras.a@unic.ac.cy,99616617,Associate Professor,0000-0002-5701-3369,,Management
+Charitou Melita,"Accounting, Economics & Finance",charitou.m@unic.ac.cy,99693251,Associate Professor,0000-0002-3232-4590,,Accounting
+Demetriou Marlen,Management ,demetriou.m@unic.ac.cy,99698708,Associate Professor,0000-0003-1329-6042,35490355500,Management
+Efthymiou Leonidas,"Accounting, Economics & Finance",efthymiou.l@unic.ac.cy,99327945,Associate Professor,0000-0001-8099-5885,,Management
+Epaminonda Epaminondas,Management ,epaminonda.n@unic.ac.cy; ,99493991,Associate Professor,0000-0001-9623-0414,,Management
+Georgiou Ifigenia,"Accounting, Economics & Finance",georgiou.i@unic.ac.cy,99660014,Associate Professor,0000-0003-1753-3455,,Accounting
+Giaglis George,Digital Innovation,giaglis.g@unic.ac.cy,X,Professor,0000-0002-7824-633X,,Blockchain
+Hadjidakis Spyros,"Accounting, Economics & Finance",hadjidakis.s@unic.ac.cy,99544300,Associate Professor,0000-0002-4360-5363,56410796700,Economics
+Iacovidou Melpo,Accounting,iacovidou.m@unic.ac.cy,96357353,Assistant Professor,0000-0003-0474-2303,,Accounting
+Iosif Elias,"Accounting, Economics & Finance",iosif.e@unic.ac.cy,99219539,Assistant Professor,0000-0002-4694-8556,,Blockchain
+Kaufmann Hans-Rudiguer,Management ,kaufmann.r@unic.ac.cy,99026639,Professor,0000-0002-9005-7988,,Management*
+Kogetsidis Harry,Management ,kogetsidis.h@unic.ac.cy,99537085,Associate Lecturer,0000-0001-9292-9375,,Management
+Komodromos Marcos,Management ,komodromos.m@unic.ac.cy,X,Professor,0000-0002-2910-6541,,Marketing
+Kokkinaki Angelika,Management ,kokkinaki.a@unic.ac.cy,99449620,Professor,0000-0002-5985-8082,,Information Systems
+Ktoridou Despo,Management ,ktoridou.d@unic.ac.cy,99638171, Professor,https://orcid.org/0000-0002-1675-6748,16033181300,Information Systems
+Lois Petros,"Accounting, Economics & Finance",lois.p@unic.ac.cy,99407577, Professor,0000-0002-8047-7559,,Accounting
+Louca Soulla,Digital Innovation,louca.s@unic.ac.cy,99586857,Professor,0000-0001-5280-2775,,Blockchain
+Makridakis Spyros,Digital Innovation,makridakis.s@unic.ac.cy,99545740,Professor,0000-0003-2519-8095,,Blockchain
+Michailidis Maria,Management ,michailidis.m@unic.ac.cy,99585569,Professor,0000-0003-1315-225X,,Management
+Morphi Katerina,Accounting,morphi.k@unic.ac.cy,96444408,Lecturer,0000-0001-8230-6377,58804931700,Accounting
+Morphitou Ria,Management ,morphitou.r@unic.ac.cy,99648692,Associate Lecturer,0000-0001-6509-734X,55343991100,Marketing
+Orphanidou Yianna,Management ,orphanidou.y@unic.ac.cy,99616820,Associate Lecturer,0000-0003-1933-4409,,Management
+Panayiotou George,Management ,panayiotou.g@unic.ac.cy,99647137,Associate Lecturer,https://orcid.org/0000-0001-7528-9281,57221785262,Management
+Papasolomou Ioanna,Management ,papasolomou.i@unic.ac.cy,99518345,Professor,0000-0003-2738-3796,,Marketing
+Sapuric Svetlana,"Accounting, Economics & Finance",sapuric.s@unic.ac.cy,99432839,Associate Professor,0000-0002-7797-4220,,Finance
+Themistocleous Marinos,Digital Innovation,themistocleous.m@unic.ac.cy,96265628,Professor,0000-0002-6904-9692 ,,Blockchain
+Thrassou Alkis,Management ,thrassou.a@unic.ac.cy,99582751,Professor,0000-0001-9409-6602,,Marketing
+Tsakiris Theodoros,Management ,tsakiris.t@unic.ac.cy,97638533,Professor,https://orcid.org/0000-0002-1380-2710,,Management
+Tsangari Haritini,"Accounting, Economics & Finance",tsangari.h@unic.ac.cy,99547157, Professor,0000-0002-0074-6318,,Finance
+Vrontis Demetris,Management ,vrontis.d@unic.ac.cy,X,Professor,0000-0001-7570-6241,,Marketing

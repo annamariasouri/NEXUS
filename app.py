@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 import altair as alt
 import pandas as pd
 import streamlit as st
+import re
 
 BASE_DIR = Path(__file__).resolve().parent
 SUMMARY_PATH = BASE_DIR / "outputs" / "summary.csv"
@@ -213,6 +214,15 @@ def format_recent_items(value: str) -> str:
     return "<br>".join(parts)
 
 
+def normalize_research_field(value: object) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip().replace("\u00a0", " ")
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\*+$", "", text).strip()
+    return text
+
+
 def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not SUMMARY_PATH.exists():
         st.info("No summary found yet. Run pipeline first to generate outputs/summary.csv.")
@@ -239,10 +249,13 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
         summary_df.get("total_publications_last_6_years", 0), errors="coerce"
     ).fillna(0).astype(int)
 
-    for col in ["department", "email", "telephone", "rank"]:
+    for col in ["department", "email", "telephone", "rank", "research_field"]:
         summary_df[col] = summary_df.get(col, "").fillna("").astype(str)
+    summary_df["research_field"] = summary_df["research_field"].map(normalize_research_field)
 
     publications_df["orcid"] = publications_df.get("orcid", "").fillna("").astype(str)
+    publications_df["research_field"] = publications_df.get("research_field", "").fillna("").astype(str)
+    publications_df["research_field"] = publications_df["research_field"].map(normalize_research_field)
     publications_df["title"] = publications_df.get("title", "").fillna("").astype(str)
     publications_df["publication_type"] = publications_df.get("publication_type", "Unknown").fillna("Unknown").astype(str)
     publications_df["source_title"] = publications_df.get("source_title", "").fillna("").astype(str)
@@ -278,12 +291,15 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     render_freshness_banner()
 
     statuses = sorted(summary_df["status"].dropna().unique().tolist())
-    c1, c2, c3 = st.columns([1.35, 1.15, 1.15])
+    research_fields = sorted([f for f in summary_df["research_field"].dropna().unique().tolist() if f.strip()])
+    c1, c2, c3, c4 = st.columns([1.2, 1.0, 1.0, 1.0])
     with c1:
         name_query = st.text_input("Search name", placeholder="Type a faculty name...")
     with c2:
         status_filter = st.multiselect("Status", options=statuses, default=statuses)
     with c3:
+      field_filter = st.multiselect("Research Field", options=research_fields, default=research_fields)
+    with c4:
         min_count = st.slider("Min journal count", min_value=0, max_value=40, value=0)
 
     filtered = summary_df.copy()
@@ -291,6 +307,8 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
         filtered = filtered[filtered["name"].str.contains(name_query, case=False, na=False)]
     if status_filter:
         filtered = filtered[filtered["status"].isin(status_filter)]
+    if field_filter:
+      filtered = filtered[filtered["research_field"].isin(field_filter)]
     filtered = filtered[filtered["journal_publications_last_6_years"] >= min_count]
     filtered = filtered.sort_values(
         by=["total_publications_last_6_years", "journal_publications_last_6_years", "name"],
@@ -326,6 +344,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
                 [
                     "<tr>",
                     f"<td><a class='name-link' href='?orcid={encoded_orcid}'>{escape(str(row['name']))}</a></td>",
+                    f"<td>{escape(str(row['research_field'])) or '-'}</td>",
                     f"<td class='articles-cell'>{format_recent_items(row['recent_3_articles'])}</td>",
                     f"<td>{int(row['total_publications_last_6_years'])}</td>",
                     f"<td>{int(row['journal_publications_last_6_years'])}</td>",
@@ -341,6 +360,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
         <thead>
           <tr>
             <th>Name</th>
+            <th>Research Field</th>
             <th>Recent 3 Publications</th>
             <th>Total (6 Years)</th>
             <th>Journals (6 Years)</th>
@@ -348,7 +368,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
           </tr>
         </thead>
         <tbody>
-          {''.join(rows_html) if rows_html else '<tr><td colspan="5">No matching records.</td></tr>'}
+          {''.join(rows_html) if rows_html else '<tr><td colspan="6">No matching records.</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -381,6 +401,7 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
         <div class="profile-grid">
           <div class="profile-card"><div class="profile-label">Name</div><div class="profile-value">{escape(str(person['name']))}</div></div>
           <div class="profile-card"><div class="profile-label">Department</div><div class="profile-value">{escape(str(person['department'])) or '-'}</div></div>
+          <div class="profile-card"><div class="profile-label">Research Field</div><div class="profile-value">{escape(str(person['research_field'])) or '-'}</div></div>
           <div class="profile-card"><div class="profile-label">Rank</div><div class="profile-value">{escape(str(person['rank'])) or '-'}</div></div>
           <div class="profile-card"><div class="profile-label">Email</div><div class="profile-value">{escape(str(person['email'])) or '-'}</div></div>
           <div class="profile-card"><div class="profile-label">Mobile / Telephone</div><div class="profile-value">{escape(str(person['telephone'])) or '-'}</div></div>

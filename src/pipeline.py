@@ -88,6 +88,16 @@ def normalize_scopus_id(value: str) -> str:
     return digits
 
 
+def normalize_research_field(value: str) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip().replace("\u00a0", " ")
+    text = re.sub(r"\s+", " ", text)
+    # Remove trailing markers like "Management*".
+    text = re.sub(r"\*+$", "", text).strip()
+    return text
+
+
 def has_recent_results(entries: List[Dict], min_year: int) -> bool:
     return any(parse_year(entry) >= min_year for entry in entries)
 
@@ -135,6 +145,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
         email = str(row.get("Email", "")).strip()
         telephone = str(row.get("Telephone", "")).strip()
         rank = str(row.get("Rank ", "")).strip()
+        research_field = normalize_research_field(row.get("Research Field", ""))
         raw_orcid = str(row.get("ORCID", ""))
         raw_scopus_id = str(row.get("Scopus ID", ""))
         orcid = normalize_orcid(raw_orcid)
@@ -151,6 +162,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                     "email": email,
                     "telephone": telephone,
                     "rank": rank,
+                    "research_field": research_field,
                     "orcid": raw_orcid,
                     "scopus_id": raw_scopus_id,
                     "journal_publications_last_6_years": 0,
@@ -177,6 +189,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                         "email": email,
                         "telephone": telephone,
                         "rank": rank,
+                        "research_field": research_field,
                         "orcid": orcid,
                         "scopus_id": scopus_id,
                         "journal_publications_last_6_years": 0,
@@ -201,6 +214,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                             "email": email,
                             "telephone": telephone,
                             "rank": rank,
+                            "research_field": research_field,
                             "orcid": orcid,
                             "scopus_id": scopus_id,
                             "journal_publications_last_6_years": 0,
@@ -222,6 +236,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                         "email": email,
                         "telephone": telephone,
                         "rank": rank,
+                        "research_field": research_field,
                         "orcid": orcid,
                         "scopus_id": scopus_id,
                         "journal_publications_last_6_years": 0,
@@ -254,6 +269,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "email": email,
                 "telephone": telephone,
                 "rank": rank,
+                "research_field": research_field,
                 "orcid": normalized_orcid_for_output,
                 "scopus_id": scopus_id,
                 "identifier_source": identifier_source,
@@ -287,6 +303,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "email": email,
                 "telephone": telephone,
                 "rank": rank,
+                "research_field": research_field,
                 "orcid": normalized_orcid_for_output,
                 "scopus_id": scopus_id,
                 "identifier_source": identifier_source,
