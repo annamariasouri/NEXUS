@@ -192,12 +192,7 @@ def inject_styles() -> None:
         .stCheckbox [role="checkbox"][aria-checked="true"] {
           background-color: #0b8a5d !important;
           border-color: #0b8a5d !important;
-        }
-
-        .stCheckbox [role="checkbox"] svg,
-        .stCheckbox [role="checkbox"] path {
-          fill: #ffffff !important;
-          stroke: #ffffff !important;
+          color: #ffffff !important;
         }
 
         .stCheckbox label,
@@ -340,8 +335,8 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
 
     grouped_fields: list[tuple[str, list[str]]] = [
       ("Accounting / Economics / Finance", ["Accounting", "Economics", "Finance"]),
-      ("Blockchain", ["Blockchain"]),
-      ("Management / Marketing / Information Systems", ["Management", "Marketing", "Information Systems"]),
+      ("Digital Innovation", ["Blockchain"]),
+      ("Management", ["Management", "Marketing", "Information Systems"]),
     ]
 
     # Any unexpected field still appears as selectable in an extra group.
@@ -382,8 +377,8 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
       filtered = filtered[filtered["research_field"].isin(field_filter)]
     filtered = filtered[filtered["journal_publications_last_6_years"] >= min_count]
     filtered = filtered.sort_values(
-        by=["total_publications_last_6_years", "journal_publications_last_6_years", "name"],
-        ascending=[False, False, True],
+      by=["name"],
+      ascending=[True],
     )
 
     st.markdown(
