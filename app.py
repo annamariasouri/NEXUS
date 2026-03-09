@@ -305,11 +305,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     with c1:
         name_query = st.text_input("Search name", placeholder="Type a faculty name...")
     with c2:
-      st.markdown("**Status**")
-      status_selection: dict[str, bool] = {}
-      for status in statuses:
-        status_selection[status] = st.checkbox(status, value=True, key=f"status_{status}")
-    status_filter = [status for status, is_selected in status_selection.items() if is_selected]
+      status_filter = st.multiselect("Status", options=statuses, default=statuses)
 
     st.markdown("**Research Field**")
     field_selection: dict[str, bool] = {}
