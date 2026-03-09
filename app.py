@@ -184,6 +184,17 @@ def inject_styles() -> None:
           white-space: normal;
         }
 
+        /* Make checkbox accents green in Streamlit's BaseWeb checkbox controls. */
+        .stCheckbox [data-baseweb="checkbox"] > div:first-child {
+          border-color: #0b8a5d;
+        }
+
+        .stCheckbox [data-baseweb="checkbox"] input:checked + div,
+        .stCheckbox [data-baseweb="checkbox"] input:indeterminate + div {
+          background-color: #0b8a5d;
+          border-color: #0b8a5d;
+        }
+
         @media (max-width: 900px) {
           .kpi-wrap { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
           .profile-grid { grid-template-columns: 1fr; }
@@ -309,18 +320,43 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
 
     st.markdown("**Status**")
     status_selection: dict[str, bool] = {}
-    status_cols = st.columns(max(1, min(3, len(statuses))))
-    for idx, status in enumerate(statuses):
-      with status_cols[idx % len(status_cols)]:
-        status_selection[status] = st.checkbox(status, value=True, key=f"status_{status}")
+    for status in statuses:
+      status_selection[status] = st.checkbox(status, value=True, key=f"status_{status}")
     status_filter = [status for status, is_selected in status_selection.items() if is_selected]
 
     st.markdown("**Research Field**")
     field_selection: dict[str, bool] = {}
-    field_cols = st.columns(max(1, min(4, len(research_fields))))
-    for idx, field in enumerate(research_fields):
-      with field_cols[idx % len(field_cols)]:
-        field_selection[field] = st.checkbox(field, value=True, key=f"field_{field}")
+
+    grouped_fields: list[tuple[str, list[str]]] = [
+      ("Accounting / Economics / Finance", ["Accounting", "Economics", "Finance"]),
+      ("Blockchain", ["Blockchain"]),
+      ("Management / Marketing / Information Systems", ["Management", "Marketing", "Information Systems"]),
+    ]
+
+    # Any unexpected field still appears as selectable in an extra group.
+    known_fields = {item for _, group_items in grouped_fields for item in group_items}
+    extra_fields = sorted([field for field in research_fields if field not in known_fields])
+    if extra_fields:
+      grouped_fields.append(("Other", extra_fields))
+
+    group_cols = st.columns(len(grouped_fields))
+    for idx, (group_name, group_items) in enumerate(grouped_fields):
+      available_items = [item for item in group_items if item in research_fields]
+      if not available_items:
+        continue
+
+      key_suffix = re.sub(r"\W+", "_", group_name.lower()).strip("_")
+      with group_cols[idx]:
+        st.markdown(f"**{group_name}**")
+        select_all = st.checkbox("Select all", value=True, key=f"field_group_all_{key_suffix}")
+        for field in available_items:
+          field_key = re.sub(r"\W+", "_", field.lower()).strip("_")
+          field_selection[field] = st.checkbox(
+            field,
+            value=select_all,
+            key=f"field_{field_key}",
+          )
+
     field_filter = [field for field, is_selected in field_selection.items() if is_selected]
 
     filtered = summary_df.copy()
