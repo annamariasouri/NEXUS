@@ -56,15 +56,15 @@ def inject_styles() -> None:
         .kpi-wrap {
           display: grid;
           grid-template-columns: repeat(4, minmax(170px, 1fr));
-          gap: 12px;
-          margin-bottom: 14px;
+          gap: 8px;
+          margin-bottom: 10px;
         }
 
         .kpi-card {
           background: var(--card);
           border: 1px solid var(--border);
           border-radius: 16px;
-          padding: 14px 16px;
+          padding: 10px 12px;
           backdrop-filter: blur(6px);
           box-shadow: 0 12px 30px rgba(20, 31, 51, 0.09);
           transition: transform 0.16s ease, box-shadow 0.16s ease;
@@ -81,9 +81,9 @@ def inject_styles() -> None:
         .profile-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(190px, 1fr));
-          gap: 12px;
-          margin-top: 6px;
-          margin-bottom: 14px;
+          gap: 8px;
+          margin-top: 4px;
+          margin-bottom: 10px;
         }
 
         .profile-card {
@@ -102,7 +102,7 @@ def inject_styles() -> None:
           border-radius: 18px;
           overflow: auto;
           box-shadow: 0 12px 30px rgba(15, 36, 64, 0.1);
-          margin-top: 10px;
+          margin-top: 6px;
         }
 
         .nexus-table {
@@ -146,8 +146,8 @@ def inject_styles() -> None:
           border: 1px solid var(--border);
           border-left: 4px solid var(--accent);
           border-radius: 12px;
-          padding: 10px 12px;
-          margin-bottom: 12px;
+          padding: 8px 10px;
+          margin-bottom: 8px;
           color: var(--ink);
           box-shadow: 0 8px 22px rgba(24, 42, 70, 0.08);
         }
@@ -182,23 +182,6 @@ def inject_styles() -> None:
         .articles-cell, .title-cell {
           line-height: 1.45;
           white-space: normal;
-        }
-
-        /* Keep label text normal and style only the checkbox control. */
-        .stCheckbox [role="checkbox"] {
-          border-color: #0b8a5d !important;
-        }
-
-        .stCheckbox [role="checkbox"][aria-checked="true"] {
-          background-color: #0b8a5d !important;
-          border-color: #0b8a5d !important;
-          color: #ffffff !important;
-        }
-
-        .stCheckbox label,
-        .stCheckbox label span,
-        .stCheckbox label p {
-          background: transparent !important;
         }
 
         @media (max-width: 900px) {
@@ -322,12 +305,10 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     with c1:
         name_query = st.text_input("Search name", placeholder="Type a faculty name...")
     with c2:
-        min_count = st.slider("Min journal count", min_value=0, max_value=40, value=0)
-
-    st.markdown("**Status**")
-    status_selection: dict[str, bool] = {}
-    for status in statuses:
-      status_selection[status] = st.checkbox(status, value=True, key=f"status_{status}")
+      st.markdown("**Status**")
+      status_selection: dict[str, bool] = {}
+      for status in statuses:
+        status_selection[status] = st.checkbox(status, value=True, key=f"status_{status}")
     status_filter = [status for status, is_selected in status_selection.items() if is_selected]
 
     st.markdown("**Research Field**")
@@ -371,11 +352,8 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     filtered = summary_df.copy()
     if name_query:
         filtered = filtered[filtered["name"].str.contains(name_query, case=False, na=False)]
-    if status_filter:
-        filtered = filtered[filtered["status"].isin(status_filter)]
-    if field_filter:
-      filtered = filtered[filtered["research_field"].isin(field_filter)]
-    filtered = filtered[filtered["journal_publications_last_6_years"] >= min_count]
+    filtered = filtered[filtered["status"].isin(status_filter)]
+    filtered = filtered[filtered["research_field"].isin(field_filter)]
     filtered = filtered.sort_values(
       by=["name"],
       ascending=[True],
