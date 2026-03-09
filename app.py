@@ -184,6 +184,18 @@ def inject_styles() -> None:
           white-space: normal;
         }
 
+        /* Keep full text visible inside Streamlit multiselect selected tags. */
+        .stMultiSelect [data-baseweb="tag"] {
+          max-width: none !important;
+        }
+
+        .stMultiSelect [data-baseweb="tag"] span {
+          max-width: none !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+          white-space: nowrap !important;
+        }
+
         @media (max-width: 900px) {
           .kpi-wrap { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
           .profile-grid { grid-template-columns: 1fr; }
