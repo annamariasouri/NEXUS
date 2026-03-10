@@ -362,6 +362,8 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
         filtered = filtered[filtered["name"].str.contains(name_query, case=False, na=False)]
     filtered = filtered[filtered["status"].isin(status_filter)]
     filtered = filtered[filtered["research_field"].isin(field_filter)]
+    # Exclude this person from the dashboard table regardless of source spelling variations.
+    filtered = filtered[~filtered["name"].str.contains(r"\bria\s+(morphidou|morphitou)\b", case=False, na=False, regex=True)]
     filtered = filtered.sort_values(
       by=["name"],
       ascending=[True],
@@ -415,7 +417,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
             <th>Research Field</th>
             <th>Recent 3 Publications</th>
             <th>Total (6 Years)</th>
-            <th>Journals (6 Years)</th>
+            <th>PRJ<br>(6 Years)</th>
             <th>Status</th>
           </tr>
         </thead>
