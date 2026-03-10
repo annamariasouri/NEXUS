@@ -122,6 +122,20 @@ def inject_styles() -> None:
           font-size: 0.9rem;
         }
 
+        .nexus-table thead th.split-header {
+          min-width: 120px;
+        }
+
+        .nexus-table thead th.split-header .main {
+          display: block;
+        }
+
+        .nexus-table thead th.split-header .sub {
+          display: block;
+          white-space: nowrap;
+          font-size: 0.95em;
+        }
+
         .nexus-table tbody td {
           border-top: 1px solid #e5edf5;
           padding: 11px 14px;
@@ -417,7 +431,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
             <th>Research Field</th>
             <th>Recent 3 Publications</th>
             <th>Total (6 Years)</th>
-            <th>PRJ<br>(6 Years)</th>
+            <th class='split-header'><span class='main'>PRJ</span><span class='sub'>(6 Years)</span></th>
             <th>Status</th>
           </tr>
         </thead>
