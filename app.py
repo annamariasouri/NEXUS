@@ -123,7 +123,7 @@ def inject_styles() -> None:
         }
 
         .nexus-table thead th.split-header {
-          min-width: 120px;
+          min-width: 126px;
         }
 
         .nexus-table thead th.split-header .main {
@@ -430,7 +430,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
             <th>Name</th>
             <th>Research Field</th>
             <th>Recent 3 Publications</th>
-            <th>Total (6 Years)</th>
+            <th class='split-header'><span class='main'>Total</span><span class='sub'>(6 Years)</span></th>
             <th class='split-header'><span class='main'>PRJ</span><span class='sub'>(6 Years)</span></th>
             <th>Status</th>
           </tr>
