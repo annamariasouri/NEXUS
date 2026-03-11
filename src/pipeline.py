@@ -296,6 +296,13 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
         ])
         journal_count = sum(1 for item in person_pubs if item.get("is_journal", False))
 
+        if journal_count <= 1:
+            status = "HOD Consideration"
+        elif journal_count >= 3:
+            status = "fulfills requirements"
+        else:
+            status = "does not fulfill requirements"
+        
         summary_rows.append(
             {
                 "name": name,
@@ -310,7 +317,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "total_publications_last_6_years": len(person_pubs),
                 "journal_publications_last_6_years": journal_count,
                 "recent_3_articles": recent_display,
-                "status": "fulfills requirements" if journal_count >= 3 else "does not fulfill requirements",
+                "status": status,
                 "notes": notes,
             }
         )

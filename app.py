@@ -193,6 +193,12 @@ def inject_styles() -> None:
           border-color: #f2c89a;
         }
 
+        .status-hod {
+          color: #d32f2f;
+          background: #ffebee;
+          border-color: #ef5350;
+        }
+
         .articles-cell, .title-cell {
           line-height: 1.45;
           white-space: normal;
@@ -322,7 +328,7 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     st.caption("All Scopus publication types in the last 6 years. Click a name to open the profile page.")
     render_freshness_banner()
 
-    preferred_status_order = ["Faculty sufficiency", "Research committee review"]
+    preferred_status_order = ["Faculty sufficiency", "HOD Consideration", "Research committee review"]
     present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
     other_statuses = sorted([s for s in summary_df["status"].dropna().unique().tolist() if s not in present_statuses])
     statuses = present_statuses + other_statuses
@@ -405,7 +411,12 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     rows_html = []
     for _, row in filtered.iterrows():
         status_value = row["status"]
-        status_class = "status-ok" if status_value == "Faculty sufficiency" else "status-no"
+        if status_value == "Faculty sufficiency":
+            status_class = "status-ok"
+        elif status_value == "HOD Consideration":
+            status_class = "status-hod"
+        else:
+            status_class = "status-no"
         encoded_orcid = quote_plus(str(row["orcid"]))
         rows_html.append(
             "".join(
