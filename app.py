@@ -11,6 +11,7 @@ import re
 BASE_DIR = Path(__file__).resolve().parent
 SUMMARY_PATH = BASE_DIR / "outputs" / "summary.csv"
 PUBLICATIONS_PATH = BASE_DIR / "outputs" / "publications_raw.csv"
+FULL_TIMER_ROSTER_PATH = BASE_DIR / "Full timers ORCID.csv"
 
 st.set_page_config(page_title="NEXUS Research Dashboard", layout="wide")
 
@@ -277,6 +278,106 @@ def normalize_research_field(value: object) -> str:
     return text
 
 
+def _normalize_orcid_from_cell(raw: object) -> str:
+    text = str(raw or "").strip().replace("\u00a0", " ")
+    match = re.search(r"(\d{4}-\d{4}-\d{4}-[\dXx]{4})", text)
+    return match.group(1).upper() if match else ""
+
+
+def _roster_column(roster: pd.DataFrame, target: str) -> str | None:
+    target_stripped = target.strip()
+    for col in roster.columns:
+        if str(col).strip() == target_stripped:
+            return col
+    return None
+
+
+def merge_full_timer_roster(summary_df: pd.DataFrame) -> pd.DataFrame:
+    """Fill unic_entity from roster and append people who are on the roster but missing from summary."""
+    if not FULL_TIMER_ROSTER_PATH.exists():
+        return summary_df
+
+    roster = pd.read_csv(FULL_TIMER_ROSTER_PATH, dtype=str).fillna("")
+    c_name = _roster_column(roster, "Name")
+    c_entity = _roster_column(roster, "UNIC Entity")
+    if not c_name or not c_entity:
+        return summary_df
+
+    c_dept = _roster_column(roster, "Department")
+    if c_dept is None:
+        c_dept = next((c for c in roster.columns if "Department" in str(c)), None)
+    c_email = _roster_column(roster, "Email")
+    c_tel = _roster_column(roster, "Telephone")
+    c_rank = _roster_column(roster, "Rank")
+    if c_rank is None:
+        c_rank = next((c for c in roster.columns if str(c).strip().startswith("Rank")), None)
+    c_rf = _roster_column(roster, "Research Field")
+    c_orcid = _roster_column(roster, "ORCID")
+    c_scopus = _roster_column(roster, "Scopus ID")
+
+    def norm_name(value: object) -> str:
+        return str(value).strip().lower()
+
+    entity_by_name: dict[str, str] = {}
+    roster_row_by_name: dict[str, pd.Series] = {}
+    for _, row in roster.iterrows():
+        nm = str(row.get(c_name, "")).strip()
+        if not nm:
+            continue
+        key = norm_name(nm)
+        entity_by_name[key] = str(row.get(c_entity, "")).strip()
+        roster_row_by_name[key] = row
+
+    name_keys = summary_df["name"].map(norm_name)
+    filled: list[str] = []
+    for key, existing in zip(name_keys, summary_df["unic_entity"].tolist()):
+        from_roster = entity_by_name.get(key, "").strip()
+        ex = str(existing).strip() if existing is not None and str(existing) != "nan" else ""
+        filled.append(from_roster if from_roster else ex)
+    summary_df = summary_df.copy()
+    summary_df["unic_entity"] = filled
+
+    present = set(name_keys.tolist())
+    stub_list: list[dict] = []
+    for key, rseries in roster_row_by_name.items():
+        if key in present:
+            continue
+        nm = str(rseries.get(c_name, "")).strip()
+        raw_orch = str(rseries.get(c_orcid, "")) if c_orcid else ""
+        orcid_out = _normalize_orcid_from_cell(raw_orch) or raw_orch.strip()
+        stub: dict = {
+            "name": nm,
+            "department": str(rseries.get(c_dept, "")).strip() if c_dept else "",
+            "email": str(rseries.get(c_email, "")).strip() if c_email else "",
+            "telephone": str(rseries.get(c_tel, "")).strip() if c_tel else "",
+            "rank": str(rseries.get(c_rank, "")).strip() if c_rank else "",
+            "research_field": normalize_research_field(str(rseries.get(c_rf, "")) if c_rf else ""),
+            "unic_entity": entity_by_name.get(key, ""),
+            "orcid": orcid_out,
+            "scopus_id": str(rseries.get(c_scopus, "")).strip() if c_scopus else "",
+            "identifier_source": "",
+            "total_publications_last_6_years": 0,
+            "journal_publications_last_6_years": 0,
+            "recent_3_articles": "",
+            "status": "does not fulfill requirements",
+            "notes": "Roster only until the Scopus pipeline is run for this person.",
+        }
+        stub_list.append(stub)
+
+    if not stub_list:
+        return summary_df
+
+    stub_df = pd.DataFrame(stub_list)
+    for col in summary_df.columns:
+        if col not in stub_df.columns:
+            if col in ("journal_publications_last_6_years", "total_publications_last_6_years"):
+                stub_df[col] = 0
+            else:
+                stub_df[col] = ""
+    stub_df = stub_df[summary_df.columns.tolist()]
+    return pd.concat([summary_df, stub_df], ignore_index=True)
+
+
 def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not SUMMARY_PATH.exists():
         st.info("No summary found yet. Run pipeline first to generate outputs/summary.csv.")
@@ -294,13 +395,6 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     summary_df["name"] = summary_df["name"].fillna("").astype(str)
     summary_df["orcid"] = summary_df["orcid"].fillna("").astype(str)
-    summary_df["status"] = summary_df["status"].fillna("does not fulfill requirements").astype(str)
-    summary_df["status"] = summary_df["status"].replace(
-      {
-        "fulfills requirements": "Faculty sufficiency",
-        "does not fulfill requirements": "Research committee review",
-      }
-    )
     summary_df["recent_3_articles"] = summary_df["recent_3_articles"].fillna("").astype(str)
     summary_df["journal_publications_last_6_years"] = pd.to_numeric(
         summary_df.get("journal_publications_last_6_years", 0), errors="coerce"
@@ -315,7 +409,22 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     if "unic_entity" not in summary_df.columns:
         summary_df["unic_entity"] = ""
+    summary_df["unic_entity"] = summary_df["unic_entity"].fillna("").astype(str)
+
+    summary_df = merge_full_timer_roster(summary_df)
+
+    # Blank research fields are excluded by the field checkboxes unless we label them.
+    blank_rf = summary_df["research_field"].fillna("").astype(str).str.strip() == ""
+    summary_df.loc[blank_rf, "research_field"] = "Uncategorized"
+
     summary_df["unic_entity"] = summary_df["unic_entity"].fillna("").astype(str).str.strip()
+    summary_df["status"] = summary_df["status"].fillna("does not fulfill requirements").astype(str)
+    summary_df["status"] = summary_df["status"].replace(
+        {
+            "fulfills requirements": "Faculty sufficiency",
+            "does not fulfill requirements": "Research committee review",
+        }
+    )
     ce = summary_df["unic_entity"]
     summary_df["_campus_filter"] = ce.where(ce.str.len() > 0, "Not specified")
 
