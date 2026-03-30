@@ -150,6 +150,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
         raw_scopus_id = str(row.get("Scopus ID", ""))
         orcid = normalize_orcid(raw_orcid)
         scopus_id = normalize_scopus_id(raw_scopus_id)
+        unic_entity = str(row.get("UNIC Entity", "")).strip()
 
         if not name:
             continue
@@ -163,6 +164,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                     "telephone": telephone,
                     "rank": rank,
                     "research_field": research_field,
+                    "unic_entity": unic_entity,
                     "orcid": raw_orcid,
                     "scopus_id": raw_scopus_id,
                     "journal_publications_last_6_years": 0,
@@ -190,6 +192,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                         "telephone": telephone,
                         "rank": rank,
                         "research_field": research_field,
+                        "unic_entity": unic_entity,
                         "orcid": orcid,
                         "scopus_id": scopus_id,
                         "journal_publications_last_6_years": 0,
@@ -215,6 +218,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                             "telephone": telephone,
                             "rank": rank,
                             "research_field": research_field,
+                            "unic_entity": unic_entity,
                             "orcid": orcid,
                             "scopus_id": scopus_id,
                             "journal_publications_last_6_years": 0,
@@ -237,6 +241,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                         "telephone": telephone,
                         "rank": rank,
                         "research_field": research_field,
+                        "unic_entity": unic_entity,
                         "orcid": orcid,
                         "scopus_id": scopus_id,
                         "journal_publications_last_6_years": 0,
@@ -270,6 +275,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "telephone": telephone,
                 "rank": rank,
                 "research_field": research_field,
+                "unic_entity": unic_entity,
                 "orcid": normalized_orcid_for_output,
                 "scopus_id": scopus_id,
                 "identifier_source": identifier_source,
@@ -311,6 +317,7 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                 "telephone": telephone,
                 "rank": rank,
                 "research_field": research_field,
+                "unic_entity": unic_entity,
                 "orcid": normalized_orcid_for_output,
                 "scopus_id": scopus_id,
                 "identifier_source": identifier_source,
