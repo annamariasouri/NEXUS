@@ -65,6 +65,8 @@ python src/pipeline.py --input "Part timers ORCID.csv" --output-dir outputs/part
 streamlit run app.py
 ```
 
+**Teaching load:** the app looks for `Courses_cleaned.csv` **next to `app.py`** (so it works on Streamlit Cloud and GitHub), or one folder **above** that directory if you keep the file only in your local OneDrive parent folder. After pushing updates to a hosted app, open **Streamlit Cloud → Manage app → Reboot** so the new code and files load.
+
 ## GitHub Actions Weekly Update
 
 Workflow: `.github/workflows/weekly-update.yml`

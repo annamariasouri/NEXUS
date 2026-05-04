@@ -15,9 +15,24 @@ PART_SUMMARY_PATH = BASE_DIR / "outputs" / "part_timers" / "summary.csv"
 PART_PUBLICATIONS_PATH = BASE_DIR / "outputs" / "part_timers" / "publications_raw.csv"
 FULL_TIMER_ROSTER_PATH = BASE_DIR / "Full timers ORCID.csv"
 PART_TIMER_ROSTER_PATH = BASE_DIR / "Part timers ORCID.csv"
-COURSES_CLEANED_PATH = BASE_DIR.parent / "Courses_cleaned.csv"
 # One roster row = one course section; used for teaching load estimates on dashboard + Teaching Analytics.
 TEACHING_HOURS_PER_SECTION_WEEK = 3
+
+
+def resolve_courses_cleaned_path() -> Path:
+    """Teaching roster CSV: next to app.py (Git / Streamlit Cloud) or parent folder (local OneDrive layout)."""
+    beside_app = BASE_DIR / "Courses_cleaned.csv"
+    parent_folder = BASE_DIR.parent / "Courses_cleaned.csv"
+    if beside_app.exists():
+        return beside_app
+    if parent_folder.exists():
+        return parent_folder
+    return beside_app
+
+
+def courses_cleaned_search_paths() -> tuple[Path, Path]:
+    """Both standard locations (for error messages)."""
+    return (BASE_DIR / "Courses_cleaned.csv", BASE_DIR.parent / "Courses_cleaned.csv")
 
 st.set_page_config(page_title="NEXUS Dashboard", layout="wide")
 
@@ -996,13 +1011,14 @@ def load_landing_kpi_stats() -> dict[str, object]:
                 active_keys.add(nm)
 
     sections = None
-    if COURSES_CLEANED_PATH.exists():
+    courses_path = resolve_courses_cleaned_path()
+    if courses_path.exists():
         try:
-            cdf = pd.read_csv(COURSES_CLEANED_PATH, dtype=str, encoding="utf-8-sig", skiprows=1)
+            cdf = pd.read_csv(courses_path, dtype=str, encoding="utf-8-sig", skiprows=1)
             sections = len(cdf)
         except (OSError, UnicodeDecodeError, ValueError):
             try:
-                cdf = pd.read_csv(COURSES_CLEANED_PATH, dtype=str, encoding="cp1252", skiprows=1)
+                cdf = pd.read_csv(courses_path, dtype=str, encoding="cp1252", skiprows=1)
                 sections = len(cdf)
             except (OSError, UnicodeDecodeError, ValueError):
                 sections = None
@@ -1123,11 +1139,12 @@ def render_landing() -> None:
 
 def load_courses_cleaned() -> pd.DataFrame | None:
     """Load Courses_cleaned.csv (blank row + header). Returns None if missing or unreadable."""
-    if not COURSES_CLEANED_PATH.exists():
+    path = resolve_courses_cleaned_path()
+    if not path.exists():
         return None
     for enc in ("utf-8-sig", "cp1252"):
         try:
-            return pd.read_csv(COURSES_CLEANED_PATH, dtype=str, encoding=enc, skiprows=1)
+            return pd.read_csv(path, dtype=str, encoding=enc, skiprows=1)
         except (OSError, UnicodeDecodeError, ValueError):
             continue
     return None
@@ -1380,11 +1397,12 @@ def render_teaching_analytics() -> None:
 
     cdf = load_courses_cleaned()
     if cdf is None:
+        p1, p2 = courses_cleaned_search_paths()
         st.warning(
-            "We could not find your course file. It should sit next to the NEXUS app folder and be named "
-            "**Courses_cleaned.csv**."
+            "We could not find **Courses_cleaned.csv**. For cloud deploy, place it **next to app.py** in the "
+            "repository. Locally it may also live one folder **above** the app (OneDrive layout)."
         )
-        st.code(str(COURSES_CLEANED_PATH), language=None)
+        st.code(f"{p1}\n{p2}", language=None)
         return
     if cdf.empty:
         st.info("Your course file has no rows yet.")
