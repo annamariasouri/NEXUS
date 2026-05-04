@@ -258,6 +258,18 @@ def inject_styles() -> None:
           box-shadow: 0 4px 14px rgba(20, 31, 51, 0.06);
         }
 
+        section[data-testid="stExpander"] details summary {
+          font-size: 1.2rem !important;
+          font-weight: 700 !important;
+          color: var(--ink) !important;
+          letter-spacing: 0.02em;
+        }
+
+        section[data-testid="stExpander"] details summary span {
+          font-size: 1.2rem !important;
+          font-weight: 700 !important;
+        }
+
         @media (max-width: 900px) {
           .kpi-wrap { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
           .profile-grid { grid-template-columns: 1fr; }
@@ -539,9 +551,8 @@ def render_master_table() -> None:
             key="dashboard_faculty_cohort",
         )
         cohort_key = "part" if faculty_choice == "Part-time" else "full"
-        cohort_title = "Part-time faculty" if cohort_key == "part" else "Full-time faculty"
 
-        summary_df, _, summary_path, pubs_path = load_data(cohort_key)
+        summary_df, _, _, _ = load_data(cohort_key)
 
         present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
         other_statuses = sorted([s for s in summary_df["status"].dropna().unique().tolist() if s not in present_statuses])
@@ -598,13 +609,6 @@ def render_master_table() -> None:
         field_filter = [field for field, is_selected in field_selection.items() if is_selected]
 
         name_query = st.text_input("Search name", placeholder="Type a faculty name...")
-
-    st.caption(
-        f"**{cohort_title}** — all Scopus publication types in the last 6 years. "
-        "Open **Filters** above to refine the table; click a name for the same profile view as the other cohort "
-        "(publications, chart, CSV download)."
-    )
-    render_freshness_banner(summary_path, pubs_path)
 
     filtered = summary_df.copy()
     if name_query:
