@@ -22,7 +22,7 @@ Status logic (for requirement tracking):
 
 ## Dashboard Experience
 
-- Use the sidebar **Faculty cohort** control to switch between **Full-time** and **Part-time** datasets (each loads its own precomputed CSV pair).
+- Use the **Faculty** control in the main filter row (with Search name / campus / status) to switch between **Full-time** and **Part-time** datasets (each loads its own precomputed CSV pair). Profile links include `cohort=` in the URL so part-time profiles open the correct dataset.
 - Main table: modern summary dashboard with filters and clickable names.
 - Profile page: clicking a name opens a dynamic profile with:
 	- Name, department, rank, email, telephone, ORCID

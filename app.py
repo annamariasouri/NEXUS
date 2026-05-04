@@ -262,7 +262,15 @@ def normalize_query_value(value: object) -> str:
 
 
 def get_selected_orcid() -> str:
-    return normalize_query_value(st.query_params.get("orcid", ""))
+    raw = normalize_query_value(st.query_params.get("orcid", ""))
+    return _normalize_orcid_from_cell(raw) or raw.strip()
+
+
+def cohort_from_query_params() -> str:
+    raw = normalize_query_value(st.query_params.get("cohort", "")).lower()
+    if raw in ("part", "part-time", "parttime"):
+        return "part"
+    return "full"
 
 
 def format_recent_items(value: str) -> str:
@@ -476,15 +484,50 @@ def render_freshness_banner(summary_path: Path, pubs_path: Path) -> None:
     )
 
 
-def render_master_table(summary_df: pd.DataFrame, cohort: str, summary_path: Path, pubs_path: Path) -> None:
-    cohort_title = "Part-time faculty" if cohort == "part" else "Full-time faculty"
+def _orcid_row_key(value: object) -> str:
+    norm = _normalize_orcid_from_cell(value)
+    return (norm or str(value).strip()).lower()
+
+
+def clear_profile_query_params() -> None:
+    """Remove only `orcid` from the URL so `cohort` (and other params) stay for part-time vs full-time."""
+    if "orcid" not in st.query_params:
+        return
+    try:
+        del st.query_params["orcid"]
+    except (KeyError, TypeError, AttributeError):
+        remaining = {k: v for k, v in st.query_params.items() if k != "orcid"}
+        st.query_params.clear()
+        for key, val in remaining.items():
+            st.query_params[key] = val
+
+
+def render_master_table() -> None:
     st.title("NEXUS Publications Dashboard")
+
+    preferred_status_order = ["Faculty sufficiency", "HOD Consideration", "Research committee review"]
+    if "dashboard_faculty_cohort" not in st.session_state:
+        st.session_state.dashboard_faculty_cohort = (
+            "Part-time" if cohort_from_query_params() == "part" else "Full-time"
+        )
+    c_faculty, c_name, c_campus, c_status = st.columns([1.0, 1.15, 1.15, 1.15])
+    with c_faculty:
+        faculty_choice = st.radio(
+            "Faculty",
+            ["Full-time", "Part-time"],
+            horizontal=True,
+            key="dashboard_faculty_cohort",
+        )
+    cohort_key = "part" if faculty_choice == "Part-time" else "full"
+    cohort_title = "Part-time faculty" if cohort_key == "part" else "Full-time faculty"
+
+    summary_df, _, summary_path, pubs_path = load_data(cohort_key)
     st.caption(
-        f"{cohort_title} — all Scopus publication types in the last 6 years. Click a name to open the profile page."
+        f"**{cohort_title}** — all Scopus publication types in the last 6 years. "
+        "Use the filters below; click a name for the same profile view as the other cohort (publications, chart, CSV download)."
     )
     render_freshness_banner(summary_path, pubs_path)
 
-    preferred_status_order = ["Faculty sufficiency", "HOD Consideration", "Research committee review"]
     present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
     other_statuses = sorted([s for s in summary_df["status"].dropna().unique().tolist() if s not in present_statuses])
     statuses = present_statuses + other_statuses
@@ -494,12 +537,11 @@ def render_master_table(summary_df: pd.DataFrame, cohort: str, summary_path: Pat
     campus_options = [c for c in campus_preferred if c in campus_present] + sorted(
         c for c in campus_present if c not in campus_preferred
     )
-    c1, c2, c3 = st.columns([1.2, 1.2, 1.2])
-    with c1:
+    with c_name:
         name_query = st.text_input("Search name", placeholder="Type a faculty name...")
-    with c2:
+    with c_campus:
         campus_filter = st.multiselect("UNIC Entity (campus)", options=campus_options, default=campus_options)
-    with c3:
+    with c_status:
         status_filter = st.multiselect("Status", options=statuses, default=statuses)
 
     st.markdown("**Research Field**")
@@ -583,7 +625,9 @@ def render_master_table(summary_df: pd.DataFrame, cohort: str, summary_path: Pat
             status_class = "status-hod"
         else:
             status_class = "status-no"
-        encoded_orcid = quote_plus(str(row["orcid"]))
+        orcid_cell = str(row["orcid"]).strip()
+        orcid_for_url = _normalize_orcid_from_cell(orcid_cell) or orcid_cell
+        encoded_orcid = quote_plus(orcid_for_url)
         ue = str(row.get("unic_entity", "")).strip()
         if ue == "UNIC Athens":
             entity_class = "entity-pill entity-athens"
@@ -596,7 +640,7 @@ def render_master_table(summary_df: pd.DataFrame, cohort: str, summary_path: Pat
             "".join(
                 [
                     "<tr>",
-                    f"<td><a class='name-link' href='?orcid={encoded_orcid}'>{escape(str(row['name']))}</a></td>",
+                    f"<td><a class='name-link' href='?cohort={cohort_key}&orcid={encoded_orcid}'>{escape(str(row['name']))}</a></td>",
                     f"<td><span class='{entity_class}'>{entity_text}</span></td>",
                     f"<td>{escape(str(row['research_field'])) or '-'}</td>",
                     f"<td class='articles-cell'>{format_recent_items(row['recent_3_articles'])}</td>",
@@ -640,18 +684,22 @@ def render_profile_page(
     summary_path: Path,
     pubs_path: Path,
 ) -> None:
-    person_df = summary_df[summary_df["orcid"] == orcid]
+    orcid_key = _orcid_row_key(orcid)
+    person_df = summary_df[summary_df["orcid"].map(_orcid_row_key) == orcid_key]
     if person_df.empty:
-        st.warning("Selected profile was not found. Please return to the main table.")
+        st.warning(
+            "Selected profile was not found. If you opened an old link, try **?cohort=part&orcid=…** for "
+            "part-time faculty. Otherwise return to the dashboard and click the name again."
+        )
         if st.button("Back to Dashboard"):
-            st.query_params.clear()
+            clear_profile_query_params()
             st.rerun()
         return
 
     person = person_df.iloc[0]
 
     if st.button("Back to Dashboard"):
-        st.query_params.clear()
+        clear_profile_query_params()
         st.rerun()
 
     cohort_title = "Part-time faculty" if cohort == "part" else "Full-time faculty"
@@ -675,7 +723,7 @@ def render_profile_page(
         unsafe_allow_html=True,
     )
 
-    person_pubs = publications_df[publications_df["orcid"] == orcid].copy()
+    person_pubs = publications_df[publications_df["orcid"].map(_orcid_row_key) == orcid_key].copy()
     person_pubs = person_pubs.sort_values(by=["year", "cover_date"], ascending=[False, False])
 
     p1, p2 = st.columns([1.25, 1.25])
@@ -783,17 +831,11 @@ def render_profile_page(
 
 inject_styles()
 
-cohort_choice = st.sidebar.radio(
-    "Faculty cohort",
-    ["Full-time", "Part-time"],
-    index=0,
-)
-cohort_key = "part" if cohort_choice == "Part-time" else "full"
-
-summary_data, publications_data, active_summary_path, active_pubs_path = load_data(cohort_key)
 selected_orcid = get_selected_orcid()
 
 if selected_orcid:
+    cohort_key = cohort_from_query_params()
+    summary_data, publications_data, active_summary_path, active_pubs_path = load_data(cohort_key)
     render_profile_page(
         summary_data,
         publications_data,
@@ -803,4 +845,4 @@ if selected_orcid:
         active_pubs_path,
     )
 else:
-    render_master_table(summary_data, cohort_key, active_summary_path, active_pubs_path)
+    render_master_table()
