@@ -242,6 +242,26 @@ def inject_styles() -> None:
           white-space: nowrap !important;
         }
 
+        /* Minimal dashboard filters */
+        section[data-testid="stExpander"] {
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.55);
+          margin-bottom: 10px;
+          box-shadow: 0 4px 14px rgba(20, 31, 51, 0.05);
+        }
+        section[data-testid="stExpander"] details summary {
+          font-weight: 600;
+          font-size: 0.92rem;
+          color: var(--ink);
+          letter-spacing: 0.01em;
+        }
+        section[data-testid="stExpander"] details summary span {
+          color: var(--muted);
+          font-weight: 500;
+          font-size: 0.82rem;
+        }
+
         @media (max-width: 900px) {
           .kpi-wrap { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
           .profile-grid { grid-template-columns: 1fr; }
@@ -510,22 +530,25 @@ def render_master_table() -> None:
         st.session_state.dashboard_faculty_cohort = (
             "Part-time" if cohort_from_query_params() == "part" else "Full-time"
         )
-    c_faculty, c_name, c_campus, c_status = st.columns([1.0, 1.15, 1.15, 1.15])
-    with c_faculty:
+
+    top_left, top_right = st.columns([1.15, 4.5])
+    with top_left:
         faculty_choice = st.radio(
             "Faculty",
             ["Full-time", "Part-time"],
             horizontal=True,
             key="dashboard_faculty_cohort",
         )
+    with top_right:
+        st.caption(
+            "Scopus · last 6 years. Open **Filters** to narrow the table; click a name for the profile."
+        )
+
     cohort_key = "part" if faculty_choice == "Part-time" else "full"
     cohort_title = "Part-time faculty" if cohort_key == "part" else "Full-time faculty"
 
     summary_df, _, summary_path, pubs_path = load_data(cohort_key)
-    st.caption(
-        f"**{cohort_title}** — all Scopus publication types in the last 6 years. "
-        "Use the filters below; click a name for the same profile view as the other cohort (publications, chart, CSV download)."
-    )
+    st.caption(f"{cohort_title} — same rules for both cohorts.")
     render_freshness_banner(summary_path, pubs_path)
 
     present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
@@ -537,50 +560,33 @@ def render_master_table() -> None:
     campus_options = [c for c in campus_preferred if c in campus_present] + sorted(
         c for c in campus_present if c not in campus_preferred
     )
-    with c_name:
-        name_query = st.text_input("Search name", placeholder="Type a faculty name...")
-    with c_campus:
-        campus_filter = st.multiselect("UNIC Entity (campus)", options=campus_options, default=campus_options)
-    with c_status:
-        status_filter = st.multiselect("Status", options=statuses, default=statuses)
 
-    st.markdown("**Research Field**")
-    field_selection: dict[str, bool] = {}
-
-    grouped_fields: list[tuple[str, list[str]]] = [
-      ("Accounting / Economics / Finance", ["Accounting", "Economics", "Finance"]),
-      ("Digital Innovation", ["Blockchain"]),
-      ("Management", ["Management", "Marketing", "Information Systems"]),
-    ]
-
-    # Any unexpected field still appears as selectable in an extra group.
-    known_fields = {item for _, group_items in grouped_fields for item in group_items}
-    extra_fields = sorted([field for field in research_fields if field not in known_fields])
-    if extra_fields:
-      grouped_fields.append(("Other", extra_fields))
-
-    group_cols = st.columns(len(grouped_fields))
-    for idx, (group_name, group_items) in enumerate(grouped_fields):
-      available_items = [item for item in group_items if item in research_fields]
-      if not available_items:
-        continue
-
-      key_suffix = re.sub(r"\W+", "_", group_name.lower()).strip("_")
-      with group_cols[idx]:
-        st.markdown(f"**{group_name}**")
-        if len(available_items) > 1:
-          select_all = st.checkbox("Select all", value=True, key=f"field_group_all_{key_suffix}")
-        else:
-          select_all = True
-        for field in available_items:
-          field_key = re.sub(r"\W+", "_", field.lower()).strip("_")
-          field_selection[field] = st.checkbox(
-            field,
-            value=select_all,
-            key=f"field_{field_key}",
-          )
-
-    field_filter = [field for field, is_selected in field_selection.items() if is_selected]
+    with st.expander("Filters", expanded=False):
+        r1c1, r1c2, r1c3 = st.columns([1.2, 1.2, 1.35])
+        with r1c1:
+            name_query = st.text_input("Name", placeholder="Contains…", key="dash_filter_name")
+        with r1c2:
+            campus_filter = st.multiselect(
+                "Campus",
+                options=campus_options,
+                default=campus_options,
+                key="dash_filter_campus",
+            )
+        with r1c3:
+            status_filter = st.multiselect(
+                "Status",
+                options=statuses,
+                default=statuses,
+                key="dash_filter_status",
+            )
+        field_pick = st.multiselect(
+            "Research fields",
+            options=research_fields,
+            default=research_fields,
+            key="dash_filter_research_fields",
+            help="Leave all selected for no filter. Clear and pick again if you want a subset.",
+        )
+    field_filter = field_pick if field_pick else research_fields
 
     filtered = summary_df.copy()
     if name_query:
@@ -589,8 +595,11 @@ def render_master_table() -> None:
         filtered = filtered[filtered["_campus_filter"].isin(campus_filter)]
     filtered = filtered[filtered["status"].isin(status_filter)]
     filtered = filtered[filtered["research_field"].isin(field_filter)]
-    # Exclude this person from the dashboard table regardless of source spelling variations.
+    # Exclude specific people from the dashboard table regardless of source spelling variations.
     filtered = filtered[~filtered["name"].str.contains(r"\bria\s+(morphidou|morphitou)\b", case=False, na=False, regex=True)]
+    filtered = filtered[
+        ~filtered["name"].str.replace(r"\s+", " ", regex=True).str.strip().str.lower().eq("charalambidou christiana")
+    ]
     filtered = filtered.sort_values(
       by=["name"],
       ascending=[True],
