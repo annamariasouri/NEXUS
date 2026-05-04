@@ -33,14 +33,16 @@ jobs:
             exit 1
           fi
 
-      - name: Run pipeline
-        run: python src/pipeline.py --input "Full timers ORCID.csv" --output-dir outputs
+      - name: Run pipelines (full-time and part-time)
+        run: |
+          python src/pipeline.py --input "Full timers ORCID.csv" --output-dir outputs
+          python src/pipeline.py --input "Part timers ORCID.csv" --output-dir outputs/part_timers
 
       - name: Commit and push updated outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add outputs/*.csv
+          git add outputs/summary.csv outputs/publications_raw.csv outputs/part_timers/summary.csv outputs/part_timers/publications_raw.csv
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else

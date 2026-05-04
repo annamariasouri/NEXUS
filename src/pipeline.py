@@ -98,6 +98,20 @@ def normalize_research_field(value: str) -> str:
     return text
 
 
+def _row_str(row: pd.Series, *column_names: str) -> str:
+    """First non-empty match among possible CSV header spellings (e.g. 'Department' vs 'Department ')."""
+    for key in column_names:
+        if key not in row.index:
+            continue
+        raw = row.get(key, "")
+        if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+            continue
+        text = str(raw).strip().replace("\u00a0", " ")
+        if text and text.lower() != "nan":
+            return text
+    return ""
+
+
 def has_recent_results(entries: List[Dict], min_year: int) -> bool:
     return any(parse_year(entry) >= min_year for entry in entries)
 
@@ -140,17 +154,17 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
     summary_rows: List[Dict] = []
 
     for _, row in input_df.iterrows():
-        name = str(row.get("Name", "")).strip()
-        department = str(row.get("Department ", "")).strip()
-        email = str(row.get("Email", "")).strip()
-        telephone = str(row.get("Telephone", "")).strip()
-        rank = str(row.get("Rank ", "")).strip()
-        research_field = normalize_research_field(row.get("Research Field", ""))
-        raw_orcid = str(row.get("ORCID", ""))
-        raw_scopus_id = str(row.get("Scopus ID", ""))
+        name = _row_str(row, "Name")
+        department = _row_str(row, "Department ", "Department")
+        email = _row_str(row, "Email")
+        telephone = _row_str(row, "Telephone")
+        rank = _row_str(row, "Rank ", "Rank")
+        research_field = normalize_research_field(_row_str(row, "Research Field"))
+        raw_orcid = _row_str(row, "ORCID")
+        raw_scopus_id = _row_str(row, "Scopus ID")
         orcid = normalize_orcid(raw_orcid)
         scopus_id = normalize_scopus_id(raw_scopus_id)
-        unic_entity = str(row.get("UNIC Entity", "")).strip()
+        unic_entity = _row_str(row, "UNIC Entity")
 
         if not name:
             continue
@@ -167,6 +181,8 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                     "unic_entity": unic_entity,
                     "orcid": raw_orcid,
                     "scopus_id": raw_scopus_id,
+                    "identifier_source": "",
+                    "total_publications_last_6_years": 0,
                     "journal_publications_last_6_years": 0,
                     "recent_3_articles": "",
                     "status": "does not fulfill requirements",
@@ -195,6 +211,8 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                         "unic_entity": unic_entity,
                         "orcid": orcid,
                         "scopus_id": scopus_id,
+                        "identifier_source": "",
+                        "total_publications_last_6_years": 0,
                         "journal_publications_last_6_years": 0,
                         "recent_3_articles": "",
                         "status": "does not fulfill requirements",
@@ -221,6 +239,8 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                             "unic_entity": unic_entity,
                             "orcid": orcid,
                             "scopus_id": scopus_id,
+                            "identifier_source": "",
+                            "total_publications_last_6_years": 0,
                             "journal_publications_last_6_years": 0,
                             "recent_3_articles": "",
                             "status": "does not fulfill requirements",
@@ -244,6 +264,8 @@ def build_rows(input_df: pd.DataFrame, client: ScopusClient, min_year: int) -> T
                         "unic_entity": unic_entity,
                         "orcid": orcid,
                         "scopus_id": scopus_id,
+                        "identifier_source": "",
+                        "total_publications_last_6_years": 0,
                         "journal_publications_last_6_years": 0,
                         "recent_3_articles": "",
                         "status": "does not fulfill requirements",
@@ -363,7 +385,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input",
         default="Full timers ORCID.csv",
-        help="Path to input CSV with Name and ORCID columns and optional Scopus ID column.",
+        help="Path to input CSV with Name and ORCID columns; optional Telephone, Rank, Scopus ID (full-time); "
+        "part-time may omit rank/telephone/scopus if only ORCID is present.",
     )
     parser.add_argument(
         "--output-dir",

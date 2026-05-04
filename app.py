@@ -11,7 +11,10 @@ import re
 BASE_DIR = Path(__file__).resolve().parent
 SUMMARY_PATH = BASE_DIR / "outputs" / "summary.csv"
 PUBLICATIONS_PATH = BASE_DIR / "outputs" / "publications_raw.csv"
+PART_SUMMARY_PATH = BASE_DIR / "outputs" / "part_timers" / "summary.csv"
+PART_PUBLICATIONS_PATH = BASE_DIR / "outputs" / "part_timers" / "publications_raw.csv"
 FULL_TIMER_ROSTER_PATH = BASE_DIR / "Full timers ORCID.csv"
+PART_TIMER_ROSTER_PATH = BASE_DIR / "Part timers ORCID.csv"
 
 st.set_page_config(page_title="NEXUS Research Dashboard", layout="wide")
 
@@ -292,12 +295,12 @@ def _roster_column(roster: pd.DataFrame, target: str) -> str | None:
     return None
 
 
-def merge_full_timer_roster(summary_df: pd.DataFrame) -> pd.DataFrame:
-    """Fill unic_entity from roster and append people who are on the roster but missing from summary."""
-    if not FULL_TIMER_ROSTER_PATH.exists():
+def merge_roster(summary_df: pd.DataFrame, roster_path: Path) -> pd.DataFrame:
+    """Fill unic_entity from roster CSV and append people on the roster but missing from summary."""
+    if not roster_path.exists():
         return summary_df
 
-    roster = pd.read_csv(FULL_TIMER_ROSTER_PATH, dtype=str).fillna("")
+    roster = pd.read_csv(roster_path, dtype=str).fillna("")
     c_name = _roster_column(roster, "Name")
     c_entity = _roster_column(roster, "UNIC Entity")
     if not c_name or not c_entity:
@@ -378,16 +381,29 @@ def merge_full_timer_roster(summary_df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([summary_df, stub_df], ignore_index=True)
 
 
-def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
-    if not SUMMARY_PATH.exists():
-        st.info("No summary found yet. Run pipeline first to generate outputs/summary.csv.")
+def load_data(cohort: str) -> tuple[pd.DataFrame, pd.DataFrame, Path, Path]:
+    if cohort == "part":
+        summary_path = PART_SUMMARY_PATH
+        pubs_path = PART_PUBLICATIONS_PATH
+        roster_path = PART_TIMER_ROSTER_PATH
+        run_hint = (
+            'python src/pipeline.py --input "Part timers ORCID.csv" --output-dir outputs/part_timers'
+        )
+    else:
+        summary_path = SUMMARY_PATH
+        pubs_path = PUBLICATIONS_PATH
+        roster_path = FULL_TIMER_ROSTER_PATH
+        run_hint = 'python src/pipeline.py --input "Full timers ORCID.csv" --output-dir outputs'
+
+    if not summary_path.exists():
+        st.info(f"No summary found yet. Run the pipeline first, for example:\n\n`{run_hint}`")
         st.stop()
-    if not PUBLICATIONS_PATH.exists():
-        st.info("No publications file found yet. Run pipeline first to generate outputs/publications_raw.csv.")
+    if not pubs_path.exists():
+        st.info(f"No publications file found yet. Run the pipeline first, for example:\n\n`{run_hint}`")
         st.stop()
 
-    summary_df = pd.read_csv(SUMMARY_PATH)
-    publications_df = pd.read_csv(PUBLICATIONS_PATH)
+    summary_df = pd.read_csv(summary_path)
+    publications_df = pd.read_csv(pubs_path)
 
     if summary_df.empty:
         st.warning("Summary file is empty.")
@@ -411,7 +427,7 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
         summary_df["unic_entity"] = ""
     summary_df["unic_entity"] = summary_df["unic_entity"].fillna("").astype(str)
 
-    summary_df = merge_full_timer_roster(summary_df)
+    summary_df = merge_roster(summary_df, roster_path)
 
     # Blank research fields are excluded by the field checkboxes unless we label them.
     blank_rf = summary_df["research_field"].fillna("").astype(str).str.strip() == ""
@@ -438,7 +454,7 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     publications_df["cover_date"] = publications_df.get("cover_date", "").fillna("").astype(str)
     publications_df["year"] = pd.to_numeric(publications_df.get("year", 0), errors="coerce").fillna(0).astype(int)
 
-    return summary_df, publications_df
+    return summary_df, publications_df, summary_path, pubs_path
 
 
 def format_updated_time(path: Path) -> str:
@@ -446,9 +462,9 @@ def format_updated_time(path: Path) -> str:
     return timestamp.strftime("%d %b %Y, %H:%M")
 
 
-def render_freshness_banner() -> None:
-    summary_updated = format_updated_time(SUMMARY_PATH)
-    pubs_updated = format_updated_time(PUBLICATIONS_PATH)
+def render_freshness_banner(summary_path: Path, pubs_path: Path) -> None:
+    summary_updated = format_updated_time(summary_path)
+    pubs_updated = format_updated_time(pubs_path)
     st.markdown(
         f"""
         <div class="data-freshness">
@@ -460,10 +476,13 @@ def render_freshness_banner() -> None:
     )
 
 
-def render_master_table(summary_df: pd.DataFrame) -> None:
+def render_master_table(summary_df: pd.DataFrame, cohort: str, summary_path: Path, pubs_path: Path) -> None:
+    cohort_title = "Part-time faculty" if cohort == "part" else "Full-time faculty"
     st.title("NEXUS Publications Dashboard")
-    st.caption("All Scopus publication types in the last 6 years. Click a name to open the profile page.")
-    render_freshness_banner()
+    st.caption(
+        f"{cohort_title} — all Scopus publication types in the last 6 years. Click a name to open the profile page."
+    )
+    render_freshness_banner(summary_path, pubs_path)
 
     preferred_status_order = ["Faculty sufficiency", "HOD Consideration", "Research committee review"]
     present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
@@ -613,7 +632,14 @@ def render_master_table(summary_df: pd.DataFrame) -> None:
     st.markdown(table_html, unsafe_allow_html=True)
 
 
-def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame, orcid: str) -> None:
+def render_profile_page(
+    summary_df: pd.DataFrame,
+    publications_df: pd.DataFrame,
+    orcid: str,
+    cohort: str,
+    summary_path: Path,
+    pubs_path: Path,
+) -> None:
     person_df = summary_df[summary_df["orcid"] == orcid]
     if person_df.empty:
         st.warning("Selected profile was not found. Please return to the main table.")
@@ -628,9 +654,10 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
         st.query_params.clear()
         st.rerun()
 
+    cohort_title = "Part-time faculty" if cohort == "part" else "Full-time faculty"
     st.title(f"{person['name']} - Profile")
-    st.caption("All Scopus publications in the last 6 years")
-    render_freshness_banner()
+    st.caption(f"{cohort_title} — all Scopus publications in the last 6 years")
+    render_freshness_banner(summary_path, pubs_path)
 
     st.markdown(
         f"""
@@ -755,10 +782,25 @@ def render_profile_page(summary_df: pd.DataFrame, publications_df: pd.DataFrame,
 
 
 inject_styles()
-summary_data, publications_data = load_data()
+
+cohort_choice = st.sidebar.radio(
+    "Faculty cohort",
+    ["Full-time", "Part-time"],
+    index=0,
+)
+cohort_key = "part" if cohort_choice == "Part-time" else "full"
+
+summary_data, publications_data, active_summary_path, active_pubs_path = load_data(cohort_key)
 selected_orcid = get_selected_orcid()
 
 if selected_orcid:
-    render_profile_page(summary_data, publications_data, selected_orcid)
+    render_profile_page(
+        summary_data,
+        publications_data,
+        selected_orcid,
+        cohort_key,
+        active_summary_path,
+        active_pubs_path,
+    )
 else:
-    render_master_table(summary_data)
+    render_master_table(summary_data, cohort_key, active_summary_path, active_pubs_path)
