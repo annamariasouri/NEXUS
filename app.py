@@ -23,7 +23,7 @@ def inject_styles() -> None:
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
         :root {
           --bg-1: #eef7ff;
@@ -270,56 +270,207 @@ def inject_styles() -> None:
           font-weight: 700 !important;
         }
 
-        .nexus-landing-hero {
-          text-align: center;
-          padding: 2.25rem 1.25rem 1.5rem;
-          margin: 0 0 1rem 0;
-          border-radius: 24px;
-          background: linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.94) 0%,
-            rgba(238, 247, 255, 0.96) 42%,
-            rgba(255, 246, 232, 0.92) 100%
-          );
-          border: 1px solid var(--border);
-          box-shadow: 0 24px 56px rgba(17, 32, 49, 0.1);
+        /* —— Executive landing (light SaaS / glass) —— */
+        .nexus-nav-shell {
+          font-family: 'Inter', system-ui, sans-serif;
+          margin: 0 0 1.5rem 0;
+          padding: 0.5rem 0 0.75rem 0;
+          background: rgba(255, 255, 255, 0.72);
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(212, 226, 239, 0.85);
+          border-radius: 14px;
         }
-        .nexus-landing-badge {
-          display: inline-block;
-          font-family: 'Space Grotesk', sans-serif;
-          font-size: 0.72rem;
-          font-weight: 700;
-          letter-spacing: 0.14em;
-          color: #0b6b5e;
-          background: rgba(11, 138, 120, 0.12);
-          border: 1px solid rgba(11, 138, 120, 0.28);
-          padding: 0.35rem 0.85rem;
-          border-radius: 999px;
-          margin-bottom: 0.85rem;
-        }
-        .nexus-landing-title {
-          font-family: 'Space Grotesk', sans-serif;
-          font-size: clamp(1.85rem, 4.2vw, 2.65rem);
-          font-weight: 700;
-          color: var(--ink);
-          letter-spacing: -0.03em;
-          margin: 0 0 0.65rem 0;
-          line-height: 1.15;
-        }
-        .nexus-landing-tagline {
-          font-family: 'IBM Plex Sans', sans-serif;
-          font-size: 1.02rem;
-          color: var(--muted);
-          max-width: 34rem;
+        .nexus-nav {
+          max-width: 1120px;
           margin: 0 auto;
-          line-height: 1.55;
-          font-weight: 450;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.25rem 1.25rem;
+          font-size: 0.8125rem;
+          font-weight: 500;
         }
-        .nexus-landing-hint {
+        .nexus-nav a {
+          color: #5c6d82;
+          text-decoration: none;
+          padding: 0.35rem 0.15rem;
+          border-radius: 6px;
+          transition: color 0.15s ease, background 0.15s ease;
+        }
+        .nexus-nav a:hover { color: #0b6b5e; background: rgba(11, 138, 120, 0.06); }
+        .nexus-nav a.nexus-nav-active { color: #0b6b5e; font-weight: 600; }
+        .nexus-nav-sep { color: #c5d2e2; user-select: none; }
+
+        .nexus-hero-v2 {
+          position: relative;
+          font-family: 'Inter', system-ui, sans-serif;
           text-align: center;
-          color: var(--muted);
-          font-size: 0.88rem;
-          margin: 0.25rem 0 1.1rem 0;
+          padding: 2.5rem 1.5rem 2.25rem;
+          margin: 0 auto 2rem;
+          max-width: 920px;
+          border-radius: 24px;
+          background: linear-gradient(165deg, #ffffff 0%, #f4f8fc 38%, #faf8f5 100%);
+          box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 24px 48px rgba(17, 32, 49, 0.06);
+          overflow: hidden;
+        }
+        .nexus-hero-pattern {
+          position: absolute;
+          inset: 0;
+          opacity: 0.45;
+          background-image: radial-gradient(circle at 1px 1px, rgba(11, 90, 168, 0.07) 1px, transparent 0);
+          background-size: 28px 28px;
+          pointer-events: none;
+        }
+        .nexus-hero-v2::before {
+          content: "";
+          position: absolute;
+          top: -40%;
+          right: -20%;
+          width: 55%;
+          height: 120%;
+          background: radial-gradient(ellipse, rgba(11, 138, 120, 0.08) 0%, transparent 70%);
+          pointer-events: none;
+        }
+        .nexus-hero-inner { position: relative; z-index: 1; }
+        .nexus-pill {
+          display: inline-block;
+          font-size: 0.6875rem;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #3d5a6e;
+          background: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(212, 226, 239, 0.95);
+          padding: 0.4rem 0.9rem;
+          border-radius: 999px;
+          margin-bottom: 1rem;
+          box-shadow: 0 2px 8px rgba(17, 32, 49, 0.04);
+        }
+        .nexus-hero-brand {
+          font-family: 'Inter', system-ui, sans-serif;
+          font-size: clamp(2.75rem, 6vw, 3.75rem);
+          font-weight: 700;
+          letter-spacing: -0.045em;
+          color: #0f1f2e;
+          margin: 0 0 0.75rem 0;
+          line-height: 1.05;
+        }
+        .nexus-hero-sub {
+          font-size: clamp(1rem, 2.1vw, 1.2rem);
+          font-weight: 500;
+          color: #3a4d62;
+          max-width: 38rem;
+          margin: 0 auto 0.6rem;
+          line-height: 1.45;
+        }
+        .nexus-hero-micro {
+          font-size: 0.875rem;
+          font-weight: 400;
+          color: #6b7c90;
+          max-width: 28rem;
+          margin: 0 auto;
+          line-height: 1.5;
+        }
+
+        .nexus-module-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.25rem;
+          max-width: 1120px;
+          margin: 0 auto 2rem;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        @media (max-width: 900px) {
+          .nexus-module-grid { grid-template-columns: 1fr; }
+        }
+        .nexus-module {
+          position: relative;
+          display: block;
+          text-decoration: none !important;
+          color: inherit !important;
+          padding: 1.5rem 1.35rem 1.4rem;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.78);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(228, 236, 245, 0.95);
+          box-shadow: 0 8px 28px rgba(17, 32, 49, 0.05);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .nexus-module:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 16px 40px rgba(17, 32, 49, 0.09);
+          border-color: rgba(11, 138, 120, 0.22);
+        }
+        .nexus-module--active {
+          border-color: rgba(11, 138, 120, 0.45);
+          box-shadow: 0 0 0 1px rgba(11, 138, 120, 0.12), 0 12px 36px rgba(11, 138, 120, 0.1);
+          background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(240, 250, 247, 0.9) 100%);
+        }
+        .nexus-module-icon {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          margin-bottom: 0.65rem;
+          color: #0b8a78;
+        }
+        .nexus-module-icon svg {
+          width: 28px;
+          height: 28px;
+          opacity: 0.9;
+        }
+        .nexus-module-title {
+          display: block;
+          font-size: 1.0625rem;
+          font-weight: 600;
+          color: #0f1f2e;
+          margin-bottom: 0.35rem;
+          letter-spacing: -0.02em;
+        }
+        .nexus-module-desc {
+          display: block;
+          font-size: 0.8125rem;
+          color: #6b7c90;
+          line-height: 1.45;
+        }
+
+        .nexus-kpi-strip {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1rem;
+          max-width: 1120px;
+          margin: 0 auto 2rem;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        @media (max-width: 900px) {
+          .nexus-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+        }
+        .nexus-kpi-card {
+          padding: 1rem 1rem 1.05rem;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.65);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(236, 242, 249, 0.9);
+          box-shadow: 0 4px 16px rgba(17, 32, 49, 0.035);
+        }
+        .nexus-kpi-label {
+          font-size: 0.6875rem;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: #7a8b9e;
+          margin-bottom: 0.35rem;
+        }
+        .nexus-kpi-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: #0f1f2e;
+          letter-spacing: -0.02em;
+          line-height: 1.2;
+        }
+        .nexus-kpi-sub {
+          font-size: 0.6875rem;
+          color: #9aa8b8;
+          margin-top: 0.25rem;
         }
 
         @media (max-width: 900px) {
@@ -601,34 +752,155 @@ def back_to_research_table() -> None:
     st.rerun()
 
 
+def load_landing_kpi_stats() -> dict[str, object]:
+    """Aggregate light KPIs from publication summaries and optional teaching roster."""
+    out: dict[str, object] = {
+        "total_faculty": None,
+        "total_pubs": None,
+        "teaching_hours": None,
+        "active_researchers": None,
+        "teaching_sections": None,
+    }
+    name_keys: set[str] = set()
+    active_keys: set[str] = set()
+    total_pubs_sum = 0
+
+    for path in (SUMMARY_PATH, PART_SUMMARY_PATH):
+        if not path.exists():
+            continue
+        df = pd.read_csv(path, dtype=str)
+        if df.empty or "name" not in df.columns:
+            continue
+        df = df.copy()
+        df["_tp"] = pd.to_numeric(df.get("total_publications_last_6_years", 0), errors="coerce").fillna(0)
+        for _, row in df.iterrows():
+            nm = str(row.get("name", "")).strip().lower()
+            if nm and nm != "nan":
+                name_keys.add(nm)
+            try:
+                t = int(row["_tp"])
+            except (ValueError, TypeError):
+                t = 0
+            total_pubs_sum += t
+            if t > 0 and nm and nm != "nan":
+                active_keys.add(nm)
+
+    courses_path = BASE_DIR.parent / "Courses_cleaned.csv"
+    sections = None
+    if courses_path.exists():
+        try:
+            cdf = pd.read_csv(courses_path, dtype=str, encoding="utf-8-sig", skiprows=1)
+            sections = len(cdf)
+        except (OSError, UnicodeDecodeError, ValueError):
+            try:
+                cdf = pd.read_csv(courses_path, dtype=str, encoding="cp1252", skiprows=1)
+                sections = len(cdf)
+            except (OSError, UnicodeDecodeError, ValueError):
+                sections = None
+    out["total_faculty"] = len(name_keys) if name_keys else None
+    out["total_pubs"] = total_pubs_sum
+    out["active_researchers"] = len(active_keys) if active_keys else None
+    out["teaching_sections"] = sections
+    return out
+
+
+def _fmt_kpi_num(val: object) -> str:
+    if val is None:
+        return "—"
+    try:
+        n = int(val)
+    except (ValueError, TypeError):
+        return "—"
+    return f"{n:,}"
+
+
 def render_landing() -> None:
+    kpi = load_landing_kpi_stats()
+    fac = _fmt_kpi_num(kpi.get("total_faculty"))
+    pubs = _fmt_kpi_num(kpi.get("total_pubs"))
+    act = _fmt_kpi_num(kpi.get("active_researchers"))
+    sections = kpi.get("teaching_sections")
+    teach_hours = "—"
+    teach_sub = "Hours sync pending"
+    if sections is not None:
+        teach_sub = f"{int(sections):,} roster sections · hours pending"
+
     st.markdown(
         """
-        <div class="nexus-landing-hero">
-          <div class="nexus-landing-badge">NEXUS</div>
-          <div class="nexus-landing-title">Welcome to NEXUS</div>
-          <p class="nexus-landing-tagline">
-            An academic intelligence system for faculty activity, teaching assignments, and research output.
-          </p>
+        <nav class="nexus-nav-shell" aria-label="Primary">
+          <div class="nexus-nav">
+            <a class="nexus-nav-active" href="?">Dashboard</a>
+            <span class="nexus-nav-sep">·</span>
+            <a href="?page=research">Faculty profiles</a>
+            <span class="nexus-nav-sep">·</span>
+            <a href="?page=research">Publications</a>
+            <span class="nexus-nav-sep">·</span>
+            <a href="?page=teaching">Teaching load</a>
+            <span class="nexus-nav-sep">·</span>
+            <a href="?page=analytics">Analytics settings</a>
+          </div>
+        </nav>
+        <div class="nexus-hero-v2">
+          <div class="nexus-hero-pattern"></div>
+          <div class="nexus-hero-inner">
+            <span class="nexus-pill">UNIC Business School Intelligence System</span>
+            <h1 class="nexus-hero-brand">NEXUS</h1>
+            <p class="nexus-hero-sub">An Academic Intelligence System for Faculty Activity and Research Output</p>
+            <p class="nexus-hero-micro">Transforming academic activity into institutional insight.</p>
+          </div>
         </div>
-        <p class="nexus-landing-hint">Choose a workspace below.</p>
+        <div class="nexus-module-grid">
+          <a class="nexus-module nexus-module--active" href="?page=research">
+            <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/><circle cx="17" cy="7" r="1.2" fill="currentColor" stroke="none"/></svg></span>
+            <span class="nexus-module-title">Research Output</span>
+            <span class="nexus-module-desc">Publications, Scopus activity, and faculty sufficiency views.</span>
+          </a>
+          <a class="nexus-module" href="?page=teaching">
+            <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5v12l8-2.5 8 2.5V6.5"/><path d="M12 4v12"/><path d="M4 6.5L12 4l8 2.5"/></svg></span>
+            <span class="nexus-module-title">Teaching Analytics</span>
+            <span class="nexus-module-desc">Courses, workload, and teaching assignments (in development).</span>
+          </a>
+          <a class="nexus-module" href="?page=analytics">
+            <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.2"/><circle cx="17" cy="6" r="2.2"/><circle cx="14" cy="17" r="2.2"/><path d="M8.5 9.5 12 15M15.5 8 12 15M9 8l8-1"/></svg></span>
+            <span class="nexus-module-title">Institutional Analytics</span>
+            <span class="nexus-module-desc">Aggregated faculty insight and leadership dashboards (in development).</span>
+          </a>
+        </div>
+        <div class="nexus-kpi-strip">
+          <div class="nexus-kpi-card">
+            <div class="nexus-kpi-label">Total faculty</div>
+            <div class="nexus-kpi-value">"""
+        + escape(fac)
+        + """</div>
+            <div class="nexus-kpi-sub">Unique roster · full &amp; part-time summaries</div>
+          </div>
+          <div class="nexus-kpi-card">
+            <div class="nexus-kpi-label">Total publications</div>
+            <div class="nexus-kpi-value">"""
+        + escape(pubs)
+        + """</div>
+            <div class="nexus-kpi-sub">Sum · last 6 years (Scopus pipeline)</div>
+          </div>
+          <div class="nexus-kpi-card">
+            <div class="nexus-kpi-label">Teaching load hours</div>
+            <div class="nexus-kpi-value">"""
+        + escape(teach_hours)
+        + """</div>
+            <div class="nexus-kpi-sub">"""
+        + escape(teach_sub)
+        + """</div>
+          </div>
+          <div class="nexus-kpi-card">
+            <div class="nexus-kpi-label">Active researchers</div>
+            <div class="nexus-kpi-value">"""
+        + escape(act)
+        + """</div>
+            <div class="nexus-kpi-sub">With ≥1 publication in window</div>
+          </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("Research output", type="primary", use_container_width=True, key="landing_research"):
-            st.query_params["page"] = "research"
-            st.rerun()
-    with c2:
-        if st.button("Teaching assignments", use_container_width=True, key="landing_teaching"):
-            st.query_params["page"] = "teaching"
-            st.rerun()
-    with c3:
-        if st.button("Analytics", use_container_width=True, key="landing_analytics"):
-            st.query_params["page"] = "analytics"
-            st.rerun()
 
 
 def render_teaching_placeholder() -> None:
@@ -636,8 +908,8 @@ def render_teaching_placeholder() -> None:
     with h1:
         if st.button("Home", key="nav_home_teaching"):
             go_home()
-    st.title("Teaching assignments")
-    st.info("This workspace is coming soon. You will be able to explore course assignments and related views here.")
+    st.title("Teaching Analytics")
+    st.info("This workspace is coming soon. Courses, workload, and teaching insights will appear here.")
 
 
 def render_analytics_placeholder() -> None:
@@ -645,8 +917,8 @@ def render_analytics_placeholder() -> None:
     with h1:
         if st.button("Home", key="nav_home_analytics"):
             go_home()
-    st.title("Analytics")
-    st.info("This workspace is coming soon. School-wide summaries and trends will live here.")
+    st.title("Institutional Analytics")
+    st.info("This workspace is coming soon. School-wide summaries and leadership dashboards will live here.")
 
 
 def render_master_table() -> None:
