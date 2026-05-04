@@ -270,6 +270,58 @@ def inject_styles() -> None:
           font-weight: 700 !important;
         }
 
+        .nexus-landing-hero {
+          text-align: center;
+          padding: 2.25rem 1.25rem 1.5rem;
+          margin: 0 0 1rem 0;
+          border-radius: 24px;
+          background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.94) 0%,
+            rgba(238, 247, 255, 0.96) 42%,
+            rgba(255, 246, 232, 0.92) 100%
+          );
+          border: 1px solid var(--border);
+          box-shadow: 0 24px 56px rgba(17, 32, 49, 0.1);
+        }
+        .nexus-landing-badge {
+          display: inline-block;
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          color: #0b6b5e;
+          background: rgba(11, 138, 120, 0.12);
+          border: 1px solid rgba(11, 138, 120, 0.28);
+          padding: 0.35rem 0.85rem;
+          border-radius: 999px;
+          margin-bottom: 0.85rem;
+        }
+        .nexus-landing-title {
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: clamp(1.85rem, 4.2vw, 2.65rem);
+          font-weight: 700;
+          color: var(--ink);
+          letter-spacing: -0.03em;
+          margin: 0 0 0.65rem 0;
+          line-height: 1.15;
+        }
+        .nexus-landing-tagline {
+          font-family: 'IBM Plex Sans', sans-serif;
+          font-size: 1.02rem;
+          color: var(--muted);
+          max-width: 34rem;
+          margin: 0 auto;
+          line-height: 1.55;
+          font-weight: 450;
+        }
+        .nexus-landing-hint {
+          text-align: center;
+          color: var(--muted);
+          font-size: 0.88rem;
+          margin: 0.25rem 0 1.1rem 0;
+        }
+
         @media (max-width: 900px) {
           .kpi-wrap { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
           .profile-grid { grid-template-columns: 1fr; }
@@ -530,8 +582,80 @@ def clear_profile_query_params() -> None:
             st.query_params[key] = val
 
 
+def get_app_page() -> str:
+    raw = normalize_query_value(st.query_params.get("page", "")).lower()
+    if raw in ("research", "teaching", "analytics"):
+        return raw
+    return "landing"
+
+
+def go_home() -> None:
+    st.query_params.clear()
+    st.rerun()
+
+
+def back_to_research_table() -> None:
+    """Leave profile view and return to the publications table (research workspace)."""
+    clear_profile_query_params()
+    st.query_params["page"] = "research"
+    st.rerun()
+
+
+def render_landing() -> None:
+    st.markdown(
+        """
+        <div class="nexus-landing-hero">
+          <div class="nexus-landing-badge">NEXUS</div>
+          <div class="nexus-landing-title">Welcome to NEXUS</div>
+          <p class="nexus-landing-tagline">
+            An academic intelligence system for faculty activity, teaching assignments, and research output.
+          </p>
+        </div>
+        <p class="nexus-landing-hint">Choose a workspace below.</p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Research output", type="primary", use_container_width=True, key="landing_research"):
+            st.query_params["page"] = "research"
+            st.rerun()
+    with c2:
+        if st.button("Teaching assignments", use_container_width=True, key="landing_teaching"):
+            st.query_params["page"] = "teaching"
+            st.rerun()
+    with c3:
+        if st.button("Analytics", use_container_width=True, key="landing_analytics"):
+            st.query_params["page"] = "analytics"
+            st.rerun()
+
+
+def render_teaching_placeholder() -> None:
+    h1, _ = st.columns([0.14, 0.86])
+    with h1:
+        if st.button("Home", key="nav_home_teaching"):
+            go_home()
+    st.title("Teaching assignments")
+    st.info("This workspace is coming soon. You will be able to explore course assignments and related views here.")
+
+
+def render_analytics_placeholder() -> None:
+    h1, _ = st.columns([0.14, 0.86])
+    with h1:
+        if st.button("Home", key="nav_home_analytics"):
+            go_home()
+    st.title("Analytics")
+    st.info("This workspace is coming soon. School-wide summaries and trends will live here.")
+
+
 def render_master_table() -> None:
-    st.title("NEXUS Dashboard")
+    nav_home, nav_title = st.columns([0.12, 0.88])
+    with nav_home:
+        if st.button("Home", key="nav_home_research"):
+            go_home()
+    with nav_title:
+        st.title("Research output")
     st.markdown(
         '<p class="nexus-dashboard-subtitle">Data refreshed every Monday</p>',
         unsafe_allow_html=True,
@@ -668,7 +792,7 @@ def render_master_table() -> None:
             "".join(
                 [
                     "<tr>",
-                    f"<td><a class='name-link' href='?cohort={cohort_key}&orcid={encoded_orcid}'>{escape(str(row['name']))}</a></td>",
+                    f"<td><a class='name-link' href='?page=research&cohort={cohort_key}&orcid={encoded_orcid}'>{escape(str(row['name']))}</a></td>",
                     f"<td><span class='{entity_class}'>{entity_text}</span></td>",
                     f"<td>{escape(str(row['research_field'])) or '-'}</td>",
                     f"<td class='articles-cell'>{format_recent_items(row['recent_3_articles'])}</td>",
@@ -716,19 +840,28 @@ def render_profile_page(
     person_df = summary_df[summary_df["orcid"].map(_orcid_row_key) == orcid_key]
     if person_df.empty:
         st.warning(
-            "Selected profile was not found. If you opened an old link, try **?cohort=part&orcid=…** for "
-            "part-time faculty. Otherwise return to the dashboard and click the name again."
+            "Selected profile was not found. If you opened an old link, try "
+            "**?page=research&cohort=part&orcid=…** for part-time faculty. "
+            "Otherwise return to Research output and click the name again."
         )
-        if st.button("Back to Dashboard"):
-            clear_profile_query_params()
-            st.rerun()
+        ph1, ph2 = st.columns(2)
+        with ph1:
+            if st.button("Home", key="nav_home_profile_missing"):
+                go_home()
+        with ph2:
+            if st.button("Back to Research output", key="nav_back_profile_missing"):
+                back_to_research_table()
         return
 
     person = person_df.iloc[0]
 
-    if st.button("Back to Dashboard"):
-        clear_profile_query_params()
-        st.rerun()
+    pb1, pb2 = st.columns(2)
+    with pb1:
+        if st.button("Home", key="nav_home_profile"):
+            go_home()
+    with pb2:
+        if st.button("Back to Research output", key="nav_back_profile"):
+            back_to_research_table()
 
     cohort_title = "Part-time faculty" if cohort == "part" else "Full-time faculty"
     st.title(f"{person['name']} - Profile")
@@ -860,6 +993,7 @@ def render_profile_page(
 inject_styles()
 
 selected_orcid = get_selected_orcid()
+app_page = get_app_page()
 
 if selected_orcid:
     cohort_key = cohort_from_query_params()
@@ -872,5 +1006,11 @@ if selected_orcid:
         active_summary_path,
         active_pubs_path,
     )
-else:
+elif app_page == "research":
     render_master_table()
+elif app_page == "teaching":
+    render_teaching_placeholder()
+elif app_page == "analytics":
+    render_analytics_placeholder()
+else:
+    render_landing()
