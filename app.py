@@ -1,5 +1,4 @@
 from html import escape
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -17,6 +16,15 @@ FULL_TIMER_ROSTER_PATH = BASE_DIR / "Full timers ORCID.csv"
 PART_TIMER_ROSTER_PATH = BASE_DIR / "Part timers ORCID.csv"
 # One roster row = one course section; used for teaching load estimates on dashboard + Teaching Analytics.
 TEACHING_HOURS_PER_SECTION_WEEK = 3
+ABDC_CANDIDATE_PATHS = (
+    BASE_DIR / "ABDC.xlsx",
+    BASE_DIR / "ABDC_JQL.xlsx",
+    BASE_DIR / "ABDC.csv",
+    BASE_DIR / "abdc.csv",
+    BASE_DIR / "ABDC_journal_list.csv",
+    BASE_DIR / "data" / "ABDC.xlsx",
+    BASE_DIR / "data" / "ABDC.csv",
+)
 
 
 def resolve_courses_cleaned_path() -> Path:
@@ -55,6 +63,21 @@ def inject_styles() -> None:
           --border: #d4e2ef;
           --ok: #0b8a5d;
           --no: #ba3d1f;
+          /* Faculty profile (fp-*) */
+          --fp-primary-900: #0A2540;
+          --fp-primary-700: #1565C0;
+          --fp-primary-500: #1E88E5;
+          --fp-primary-400: #42A5F5;
+          --fp-primary-300: #64B5F6;
+          --fp-primary-200: #BBDEFB;
+          --fp-primary-100: #BBDEFB;
+          --fp-primary-50: #E3F2FD;
+          --fp-neutral-900: #1A1A2E;
+          --fp-neutral-700: #4B5563;
+          --fp-neutral-500: #6B7280;
+          --fp-neutral-200: #E5E7EB;
+          --fp-neutral-50: #F9FAFB;
+          --fp-white: #FFFFFF;
         }
 
         .stApp {
@@ -177,22 +200,6 @@ def inject_styles() -> None:
 
         .name-link:hover { text-decoration: underline; }
 
-        .data-freshness {
-          background: rgba(255, 255, 255, 0.86);
-          border: 1px solid var(--border);
-          border-left: 4px solid var(--accent);
-          border-radius: 12px;
-          padding: 8px 10px;
-          margin-bottom: 8px;
-          color: var(--ink);
-          box-shadow: 0 8px 22px rgba(24, 42, 70, 0.08);
-        }
-
-        .freshness-meta {
-          color: var(--muted);
-          font-size: 0.9rem;
-        }
-
         .status-pill {
           display: inline-block;
           padding: 4px 10px;
@@ -248,9 +255,12 @@ def inject_styles() -> None:
           white-space: normal;
         }
 
-        /* Keep full text visible inside Streamlit multiselect selected tags. */
+        /* Research output: on-brand multiselect tags (blue family, not red/coral) */
         .stMultiSelect [data-baseweb="tag"] {
           max-width: none !important;
+          background: var(--fp-primary-100) !important;
+          border: 1px solid var(--fp-primary-200) !important;
+          border-radius: 20px !important;
         }
 
         .stMultiSelect [data-baseweb="tag"] span {
@@ -258,6 +268,301 @@ def inject_styles() -> None:
           overflow: visible !important;
           text-overflow: clip !important;
           white-space: nowrap !important;
+          color: var(--fp-primary-700) !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+        }
+
+        .stMultiSelect [data-baseweb="tag"] [role="button"] svg {
+          fill: var(--fp-primary-500) !important;
+        }
+
+        /* Research output: radio + checkbox accent (primary blue) */
+        [data-testid="stRadio"] [data-baseweb="radio"] {
+          border-color: var(--fp-neutral-300) !important;
+        }
+        [data-testid="stRadio"] [aria-checked="true"] > div:first-child {
+          border-color: var(--fp-primary-500) !important;
+          background: var(--fp-primary-500) !important;
+        }
+        [data-testid="stCheckbox"] [data-baseweb="checkbox"] {
+          border-color: var(--fp-neutral-300) !important;
+          border-radius: 4px !important;
+        }
+        [data-testid="stCheckbox"] [data-state="checked"] [data-baseweb="checkbox"] {
+          background: var(--fp-primary-500) !important;
+          border-color: var(--fp-primary-500) !important;
+        }
+
+        .ro-kpi-ico {
+          display: inline-flex;
+          color: var(--fp-primary-300);
+          flex-shrink: 0;
+        }
+        .ro-kpi-ico svg {
+          width: 18px;
+          height: 18px;
+        }
+        .ro-field-section-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--fp-primary-700);
+          margin: 0 0 12px 0;
+          padding-top: 16px;
+          border-top: 1px solid var(--fp-neutral-200);
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .ro-field-group-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--fp-neutral-900);
+          margin: 0 0 8px 0;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .ro-filter-actions { display: flex; flex-direction: column; gap: 12px; justify-content: flex-end; align-items: flex-start; padding-top: 20px; }
+        .ro-inline-dl { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+        .ro-inline-dl [data-testid="stDownloadButton"] button {
+          border: none !important;
+          background: transparent !important;
+          color: var(--fp-primary-700) !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+        }
+        .ro-inline-dl [data-testid="stDownloadButton"] button:hover {
+          color: var(--fp-primary-500) !important;
+          background: transparent !important;
+        }
+        section[data-testid="stExpander"] details > summary svg {
+          color: var(--fp-primary-500) !important;
+          transition: transform 0.25s ease-out;
+        }
+        section[data-testid="stExpander"] details[open] > summary svg {
+          transform: rotate(90deg);
+        }
+        [data-testid="stExpanderDetails"] {
+          transition: max-height 0.25s ease-out, opacity 0.2s ease;
+        }
+
+        .ro-page-header {
+          font-family: 'Inter', system-ui, sans-serif;
+          max-width: min(1320px, 98vw);
+          margin: 0 auto;
+          padding: 40px 20px 32px 20px;
+        }
+        .ro-page-header h1 {
+          font-size: 32px;
+          font-weight: 700;
+          color: var(--fp-primary-900);
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+        .ro-caption-refresh {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+          font-size: 12px;
+          font-weight: 400;
+          color: var(--fp-neutral-500);
+        }
+        .ro-accent-bar {
+          width: 40px;
+          height: 3px;
+          background: var(--fp-primary-500);
+          border-radius: 2px;
+          margin-top: 8px;
+        }
+        .ro-caption-refresh svg { flex-shrink: 0; color: var(--fp-neutral-400); }
+
+        .ro-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          max-width: min(1320px, 98vw);
+          margin: 0 auto 8px auto;
+          padding: 0 20px;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .ro-kpi-card {
+          background: var(--fp-white);
+          border-radius: 12px;
+          padding: 24px;
+          border-left: 4px solid var(--fp-primary-500);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+          transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .ro-kpi-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .ro-kpi-top {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--fp-neutral-500);
+          margin-bottom: 12px;
+        }
+        .ro-kpi-val {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--fp-primary-900);
+          line-height: 1.15;
+          font-variant-numeric: tabular-nums;
+        }
+        .ro-kpi-dl-row {
+          max-width: min(1320px, 98vw);
+          margin: 0 auto 24px auto;
+          padding: 0 20px;
+          text-align: right;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .ro-table-shell {
+          max-width: min(1320px, 98vw);
+          margin: 24px auto 48px auto;
+          padding: 0 20px;
+        }
+        .ro-table-card {
+          background: var(--fp-white);
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+        }
+        table.ro-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 960px;
+          font-family: 'Inter', system-ui, sans-serif;
+          font-size: 14px;
+        }
+        table.ro-table thead th {
+          background: var(--fp-primary-50);
+          color: var(--fp-primary-700);
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          height: 48px;
+          padding: 0 14px;
+          text-align: left;
+          vertical-align: middle;
+          border-bottom: 2px solid var(--fp-primary-300);
+        }
+        table.ro-table thead th.ro-th-num,
+        table.ro-table thead th.ro-th-center { text-align: center; }
+        table.ro-table thead th .ro-th-sub {
+          display: block;
+          font-size: 11px;
+          font-weight: 500;
+          text-transform: none;
+          letter-spacing: 0.02em;
+          color: var(--fp-primary-700);
+          opacity: 0.85;
+          margin-top: 2px;
+        }
+        table.ro-table tbody td {
+          padding: 16px 14px;
+          border-bottom: 1px solid var(--fp-neutral-200);
+          vertical-align: top;
+          color: var(--fp-neutral-900);
+        }
+        table.ro-table tbody tr:nth-child(odd) { background: var(--fp-white); }
+        table.ro-table tbody tr:nth-child(even) { background: var(--fp-neutral-50); }
+        table.ro-table tbody tr {
+          transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        table.ro-table tbody tr:hover {
+          background: var(--fp-primary-50) !important;
+          box-shadow: inset 3px 0 0 0 var(--fp-primary-500);
+        }
+        .ro-name-link {
+          color: var(--fp-primary-700);
+          font-weight: 500;
+          text-decoration: none;
+        }
+        .ro-name-link:hover {
+          text-decoration: underline;
+          text-decoration-color: var(--fp-primary-300);
+          text-underline-offset: 2px;
+        }
+        .ro-entity-pill {
+          display: inline-block;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          background: var(--fp-primary-50);
+          border: 1px solid var(--fp-primary-200);
+          color: var(--fp-primary-700);
+          white-space: nowrap;
+        }
+        .ro-status-pill {
+          display: inline-block;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          white-space: normal;
+          max-width: 100%;
+        }
+        .ro-status-pill.ro-status-sufficiency {
+          color: #166534;
+          background: #ecfdf5;
+          border: 1px solid #bbf7d0;
+        }
+        .ro-status-pill.ro-status-committee {
+          color: #854d0e;
+          background: #fef9c3;
+          border: 1px solid #fde047;
+        }
+        .ro-status-pill.ro-status-hod {
+          color: #b91c1c;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+        }
+        .ro-status-pill.ro-status-default {
+          color: var(--fp-neutral-900);
+          background: var(--fp-neutral-50);
+          border: 1px solid var(--fp-neutral-200);
+        }
+        .ro-articles {
+          font-size: 13px;
+          color: var(--fp-neutral-700);
+          line-height: 1.45;
+        }
+        .ro-articles .ro-pub-line {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          margin-bottom: 8px;
+        }
+        .ro-articles .ro-pub-line:last-child { margin-bottom: 0; }
+        .ro-pub-year {
+          font-weight: 600;
+          color: var(--fp-primary-700);
+          margin-right: 4px;
+        }
+        .ro-empty {
+          text-align: center;
+          padding: 48px 24px;
+          color: var(--fp-neutral-500);
+          font-size: 16px;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .ro-empty svg { margin: 0 auto 12px auto; display: block; color: var(--fp-primary-200); }
+        @media (max-width: 1199px) {
+          .ro-kpi-grid { grid-template-columns: 1fr 1fr; }
+          .ro-table-card { overflow-x: auto; }
+        }
+        @media (max-width: 767px) {
+          .ro-kpi-grid { grid-template-columns: 1fr; }
         }
 
         .nexus-dashboard-subtitle {
@@ -269,56 +574,70 @@ def inject_styles() -> None:
         }
 
         section[data-testid="stExpander"] {
-          border: 1px solid var(--border);
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.55);
-          margin-bottom: 10px;
-          box-shadow: 0 4px 14px rgba(20, 31, 51, 0.06);
+          border: none;
+          border-radius: 12px;
+          background: var(--fp-white);
+          margin-bottom: 32px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+          font-family: 'Inter', system-ui, sans-serif;
         }
 
         section[data-testid="stExpander"] details summary {
-          font-size: 1.2rem !important;
-          font-weight: 700 !important;
-          color: var(--ink) !important;
-          letter-spacing: 0.02em;
+          min-height: 48px !important;
+          padding: 12px 16px !important;
+          font-size: 14px !important;
+          font-weight: 600 !important;
+          color: var(--fp-primary-700) !important;
+          letter-spacing: 0.01em;
         }
 
         section[data-testid="stExpander"] details summary span {
-          font-size: 1.2rem !important;
-          font-weight: 700 !important;
+          font-size: 14px !important;
+          font-weight: 600 !important;
+          color: var(--fp-primary-700) !important;
         }
 
-        /* —— Executive landing (light SaaS / glass) —— */
+        section[data-testid="stExpander"] [data-testid="stExpanderDetails"] > div {
+          padding: 24px !important;
+        }
+
+        /* —— Landing: same typography + fp-* palette as Research / Faculty profile —— */
         .nexus-nav-shell {
           font-family: 'Inter', system-ui, sans-serif;
           margin: 0 0 1.5rem 0;
           padding: 0.5rem 0 0.75rem 0;
-          background: rgba(255, 255, 255, 0.72);
-          backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(212, 226, 239, 0.85);
-          border-radius: 14px;
+          background: var(--fp-white);
+          border-bottom: 1px solid var(--fp-neutral-200);
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
         }
         .nexus-nav {
-          max-width: 1120px;
+          max-width: min(1320px, 98vw);
           margin: 0 auto;
           display: flex;
           flex-wrap: wrap;
           align-items: center;
           justify-content: center;
           gap: 0.25rem 1.25rem;
-          font-size: 0.8125rem;
+          font-size: 13px;
           font-weight: 500;
         }
         .nexus-nav a {
-          color: #5c6d82;
+          color: var(--fp-neutral-500);
           text-decoration: none;
           padding: 0.35rem 0.15rem;
           border-radius: 6px;
           transition: color 0.15s ease, background 0.15s ease;
         }
-        .nexus-nav a:hover { color: #0b6b5e; background: rgba(11, 138, 120, 0.06); }
-        .nexus-nav a.nexus-nav-active { color: #0b6b5e; font-weight: 600; }
-        .nexus-nav-sep { color: #c5d2e2; user-select: none; }
+        .nexus-nav a:hover {
+          color: var(--fp-primary-700);
+          background: var(--fp-primary-50);
+        }
+        .nexus-nav a.nexus-nav-active {
+          color: var(--fp-primary-700);
+          font-weight: 600;
+        }
+        .nexus-nav-sep { color: var(--fp-neutral-200); user-select: none; }
 
         .nexus-hero-v2 {
           position: relative;
@@ -326,17 +645,18 @@ def inject_styles() -> None:
           text-align: center;
           padding: 2.5rem 1.5rem 2.25rem;
           margin: 0 auto 2rem;
-          max-width: 920px;
-          border-radius: 24px;
-          background: linear-gradient(165deg, #ffffff 0%, #f4f8fc 38%, #faf8f5 100%);
-          box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 24px 48px rgba(17, 32, 49, 0.06);
+          max-width: min(920px, 98vw);
+          border-radius: 12px;
+          background: var(--fp-white);
+          border: 1px solid var(--fp-neutral-200);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
           overflow: hidden;
         }
         .nexus-hero-pattern {
           position: absolute;
           inset: 0;
-          opacity: 0.45;
-          background-image: radial-gradient(circle at 1px 1px, rgba(11, 90, 168, 0.07) 1px, transparent 0);
+          opacity: 0.35;
+          background-image: radial-gradient(circle at 1px 1px, rgba(30, 136, 229, 0.08) 1px, transparent 0);
           background-size: 28px 28px;
           pointer-events: none;
         }
@@ -347,7 +667,7 @@ def inject_styles() -> None:
           right: -20%;
           width: 55%;
           height: 120%;
-          background: radial-gradient(ellipse, rgba(11, 138, 120, 0.08) 0%, transparent 70%);
+          background: radial-gradient(ellipse, rgba(30, 136, 229, 0.06) 0%, transparent 70%);
           pointer-events: none;
         }
         .nexus-hero-inner {
@@ -362,24 +682,23 @@ def inject_styles() -> None:
         }
         .nexus-pill {
           display: inline-block;
-          font-size: 0.6875rem;
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
           text-transform: uppercase;
-          color: #3d5a6e;
-          background: rgba(255, 255, 255, 0.85);
-          border: 1px solid rgba(212, 226, 239, 0.95);
+          color: var(--fp-primary-700);
+          background: var(--fp-primary-50);
+          border: 1px solid var(--fp-primary-200);
           padding: 0.4rem 0.9rem;
           border-radius: 999px;
           margin-bottom: 1rem;
-          box-shadow: 0 2px 8px rgba(17, 32, 49, 0.04);
         }
         .nexus-hero-brand {
           font-family: 'Inter', system-ui, sans-serif;
           font-size: clamp(2.75rem, 6vw, 3.75rem);
           font-weight: 700;
           letter-spacing: -0.045em;
-          color: #0f1f2e;
+          color: var(--fp-primary-900);
           margin: 0 0 0.75rem 0;
           line-height: 1.05;
           width: 100%;
@@ -388,7 +707,7 @@ def inject_styles() -> None:
         .nexus-hero-sub {
           font-size: clamp(1rem, 2.1vw, 1.2rem);
           font-weight: 500;
-          color: #3a4d62;
+          color: var(--fp-neutral-900);
           width: 100%;
           max-width: 36rem;
           margin: 0 0 0.6rem 0;
@@ -397,9 +716,9 @@ def inject_styles() -> None:
           box-sizing: border-box;
         }
         .nexus-hero-micro {
-          font-size: 0.875rem;
+          font-size: 12px;
           font-weight: 400;
-          color: #6b7c90;
+          color: var(--fp-neutral-500);
           width: 100%;
           max-width: 28rem;
           margin: 0;
@@ -407,7 +726,6 @@ def inject_styles() -> None:
           text-align: center !important;
           box-sizing: border-box;
         }
-        /* Streamlit markdown often forces left alignment on p/h1 */
         [data-testid="stMarkdownContainer"] .nexus-hero-v2 .nexus-hero-brand,
         [data-testid="stMarkdownContainer"] .nexus-hero-v2 .nexus-hero-sub,
         [data-testid="stMarkdownContainer"] .nexus-hero-v2 .nexus-hero-micro {
@@ -418,7 +736,7 @@ def inject_styles() -> None:
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 1.25rem;
-          max-width: 1120px;
+          max-width: min(1320px, 98vw);
           margin: 0 auto 2rem;
           font-family: 'Inter', system-ui, sans-serif;
         }
@@ -431,43 +749,42 @@ def inject_styles() -> None:
           text-decoration: none !important;
           color: inherit !important;
           padding: 1.5rem 1.35rem 1.4rem;
-          border-radius: 16px;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(228, 236, 245, 0.95);
-          box-shadow: 0 8px 28px rgba(17, 32, 49, 0.05);
-          background: rgba(255, 255, 255, 0.78);
+          border-radius: 12px;
+          border: 1px solid var(--fp-neutral-200);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+          background: var(--fp-white);
           transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
         }
         .nexus-module:hover {
-          transform: translateY(-4px);
-          border-color: rgba(11, 138, 120, 0.45);
-          box-shadow: 0 0 0 1px rgba(11, 138, 120, 0.12), 0 18px 44px rgba(11, 138, 120, 0.14);
-          background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(240, 250, 247, 0.9) 100%);
+          transform: translateY(-2px);
+          border-color: var(--fp-primary-500);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          background: var(--fp-primary-50);
         }
         .nexus-module-icon {
           display: flex;
           align-items: center;
           justify-content: flex-start;
           margin-bottom: 0.65rem;
-          color: #0b8a78;
+          color: var(--fp-primary-500);
         }
         .nexus-module-icon svg {
           width: 28px;
           height: 28px;
-          opacity: 0.9;
+          opacity: 0.95;
         }
         .nexus-module-title {
           display: block;
-          font-size: 1.0625rem;
+          font-size: 17px;
           font-weight: 600;
-          color: #0f1f2e;
+          color: var(--fp-primary-900);
           margin-bottom: 0.35rem;
           letter-spacing: -0.02em;
         }
         .nexus-module-desc {
           display: block;
-          font-size: 0.8125rem;
-          color: #6b7c90;
+          font-size: 13px;
+          color: var(--fp-neutral-700);
           line-height: 1.45;
         }
 
@@ -475,7 +792,7 @@ def inject_styles() -> None:
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 1rem;
-          max-width: 1120px;
+          max-width: min(1320px, 98vw);
           margin: 0 auto 2rem;
           font-family: 'Inter', system-ui, sans-serif;
         }
@@ -483,32 +800,40 @@ def inject_styles() -> None:
           .nexus-kpi-strip { grid-template-columns: repeat(2, 1fr); }
         }
         .nexus-kpi-card {
-          padding: 1rem 1rem 1.05rem;
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.65);
-          backdrop-filter: blur(8px);
-          border: 1px solid rgba(236, 242, 249, 0.9);
-          box-shadow: 0 4px 16px rgba(17, 32, 49, 0.035);
+          padding: 1.25rem 1.25rem 1.2rem;
+          border-radius: 12px;
+          background: var(--fp-white);
+          border: 1px solid var(--fp-neutral-200);
+          border-left: 4px solid var(--fp-primary-500);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+          transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .nexus-kpi-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
         .nexus-kpi-label {
-          font-size: 0.6875rem;
-          font-weight: 600;
-          letter-spacing: 0.04em;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.05em;
           text-transform: uppercase;
-          color: #7a8b9e;
+          color: var(--fp-neutral-500);
           margin-bottom: 0.35rem;
         }
         .nexus-kpi-value {
           font-size: 1.5rem;
           font-weight: 700;
-          color: #0f1f2e;
+          color: var(--fp-primary-900);
           letter-spacing: -0.02em;
           line-height: 1.2;
+          font-variant-numeric: tabular-nums;
         }
         .nexus-kpi-sub {
-          font-size: 0.6875rem;
-          color: #9aa8b8;
-          margin-top: 0.25rem;
+          font-size: 11px;
+          font-weight: 400;
+          color: var(--fp-neutral-500);
+          margin-top: 0.35rem;
+          line-height: 1.35;
         }
 
         @media (max-width: 900px) {
@@ -703,6 +1028,441 @@ def inject_styles() -> None:
           box-shadow: inset 3px 0 0 0 rgba(90, 130, 175, 0.22);
         }
 
+        /* Slightly wider main column so profile + tables use less side dead space */
+        main .block-container,
+        section[data-testid="stMain"] > div.block-container {
+          max-width: min(1320px, 98vw) !important;
+          padding-left: 1.25rem !important;
+          padding-right: 1.25rem !important;
+        }
+
+        .fp-max {
+          max-width: min(1320px, 98vw);
+          margin-left: auto;
+          margin-right: auto;
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .fp-nav {
+          width: 100%;
+          min-height: 56px;
+          background: var(--fp-white);
+          border-bottom: 1px solid var(--fp-neutral-200);
+          box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .fp-nav-inner {
+          max-width: min(1420px, 99vw);
+          margin: 0 auto;
+          padding: 0 24px;
+          height: 56px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        /* Sticky breadcrumb bar (markdown block that contains the nav) */
+        .element-container:has(nav.fp-nav-sticky) {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          background: var(--fp-white) !important;
+          margin-left: -2.75rem;
+          margin-right: -2.75rem;
+          padding-left: 2.75rem;
+          padding-right: 2.75rem;
+        }
+        /* Analytics card wrapper around the two-column chart block */
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"] {
+          background: var(--fp-white);
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+          padding: 24px 28px 28px 28px;
+          margin-top: 20px;
+          max-width: min(1320px, 98vw) !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          align-items: stretch !important;
+        }
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"]
+          [data-testid="column"] {
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+        }
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"]
+          [data-testid="column"]:nth-child(1) {
+          align-items: center !important;
+          padding-top: 20px !important;
+          padding-bottom: 16px !important;
+          overflow: visible !important;
+        }
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          .vega-embed,
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          .vega-embed canvas {
+          overflow: visible !important;
+        }
+        /* Center donut + legend in the left analytics column */
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"]
+          [data-testid="column"]:nth-child(1)
+          > div[data-testid="stVerticalBlock"] {
+          width: 100% !important;
+          align-items: center !important;
+        }
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"]
+          [data-testid="column"]:nth-child(1)
+          .vega-embed {
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"]
+          [data-testid="column"]:nth-child(1)
+          [data-testid="stMarkdownContainer"] {
+          width: 100%;
+          text-align: center;
+        }
+        .element-container:has(.fp-analytics-marker)
+          + .element-container
+          [data-testid="stHorizontalBlock"]
+          [data-testid="column"]:nth-child(2) {
+          align-items: stretch !important;
+        }
+        .fp-nav-crumb {
+          font-size: 13px;
+          color: var(--fp-neutral-500);
+        }
+        .fp-nav-crumb a {
+          color: var(--fp-neutral-500);
+          text-decoration: none;
+          transition: color 0.15s ease;
+        }
+        .fp-nav-crumb a:hover { color: var(--fp-primary-700); }
+        .fp-nav-sep { color: var(--fp-neutral-200); margin: 0 6px; }
+        .fp-nav-current { color: var(--fp-primary-700); font-weight: 600; }
+        .fp-header {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 24px;
+          padding: 40px 20px 32px 20px;
+          max-width: min(1320px, 98vw);
+          margin: 0 auto;
+          align-items: center;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .fp-header-left {
+          min-width: 0;
+        }
+        .fp-header-text { min-width: 0; }
+        .fp-h1 {
+          font-size: 32px;
+          font-weight: 700;
+          line-height: 1.2;
+          color: var(--fp-primary-900);
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+        .fp-header-sub {
+          margin-top: 8px;
+          font-size: 16px;
+          font-weight: 400;
+          color: var(--fp-neutral-500);
+          line-height: 1.45;
+        }
+        .fp-accent-line {
+          width: 40px;
+          height: 3px;
+          background: var(--fp-primary-500);
+          border-radius: 2px;
+          margin-top: 12px;
+        }
+        .fp-header-right {
+          text-align: right;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 24px;
+        }
+        .fp-link-icon {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--fp-primary-700);
+          text-decoration: none;
+          transition: color 0.15s ease, text-decoration 0.15s ease;
+        }
+        .fp-link-icon:hover {
+          color: var(--fp-primary-700);
+          text-decoration: underline;
+          text-decoration-color: var(--fp-primary-300);
+          text-underline-offset: 2px;
+        }
+        .fp-info-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          padding: 0 20px 8px 20px;
+          max-width: min(1320px, 98vw);
+          margin: 0 auto;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .fp-info-card {
+          background: var(--fp-white);
+          border-radius: 12px;
+          padding: 24px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+          border-left: 4px solid var(--fp-primary-500);
+          transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+        }
+        .fp-info-card:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          transform: translateY(-2px);
+          border-left-color: var(--fp-primary-700);
+        }
+        .fp-info-card-top {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--fp-neutral-500);
+          margin-bottom: 8px;
+        }
+        .fp-info-card-val {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--fp-primary-900);
+          line-height: 1.35;
+          word-break: break-word;
+        }
+        .fp-info-card-val.fp-mono { font-family: ui-monospace, 'Consolas', monospace; font-weight: 500; }
+        .fp-section {
+          margin-top: 48px;
+          padding: 0 20px;
+          max-width: min(1320px, 98vw);
+          margin-left: auto;
+          margin-right: auto;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .fp-h2 {
+          font-size: 22px;
+          font-weight: 600;
+          line-height: 1.3;
+          color: var(--fp-primary-700);
+          margin: 0 0 16px 0;
+        }
+        .fp-toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 8px;
+        }
+        .fp-abdc-caption {
+          font-size: 12px;
+          color: var(--fp-neutral-500);
+          margin: 8px 0 0 0;
+        }
+        .fp-abdc-caption a {
+          color: var(--fp-primary-700);
+          text-decoration: none;
+          font-weight: 500;
+        }
+        .fp-abdc-caption a:hover { text-decoration: underline; }
+        .fp-analytics-card {
+          background: var(--fp-white);
+          border-radius: 12px;
+          padding: 32px;
+          margin-top: 24px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        .fp-analytics-inner {
+          display: grid;
+          grid-template-columns: 5fr 7fr;
+          gap: 32px;
+          align-items: start;
+        }
+        .fp-chart-wrap { text-align: center; max-width: 220px; margin: 0 auto; }
+        .fp-stats-panel {
+          border-left: 1px solid var(--fp-neutral-200);
+          padding-left: 28px;
+          margin-left: 0;
+          max-width: 100%;
+        }
+        @media (min-width: 900px) {
+          .fp-stats-panel {
+            padding-top: 8px;
+            padding-bottom: 8px;
+          }
+        }
+        .fp-stats-label {
+          font-size: 13px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--fp-neutral-500);
+          margin-bottom: 10px;
+        }
+        .fp-stats-body {
+          font-size: 17px;
+          color: var(--fp-neutral-900);
+          line-height: 1.5;
+        }
+        .fp-stats-body .fp-num {
+          color: var(--fp-primary-700);
+          font-weight: 700;
+          font-size: 1.2em;
+          font-variant-numeric: tabular-nums;
+        }
+        .fp-stats-sub {
+          font-size: 14px;
+          color: var(--fp-neutral-500);
+          margin-top: 8px;
+          line-height: 1.45;
+        }
+        .fp-stats-sub .fp-num {
+          font-size: 1.1em;
+          font-weight: 700;
+        }
+        .fp-stats-divider { height: 1px; background: var(--fp-neutral-200); margin: 22px 0; }
+        .fp-table-card {
+          background: var(--fp-white);
+          border-radius: 12px;
+          margin-top: 24px;
+          max-width: min(1320px, 98vw);
+          margin-left: auto;
+          margin-right: auto;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+        table.fp-pubs-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+          color: var(--fp-neutral-900);
+        }
+        table.fp-pubs-table thead th {
+          background: var(--fp-primary-50);
+          color: var(--fp-primary-700);
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          height: 48px;
+          padding: 0 16px;
+          text-align: left;
+          border-bottom: 1px solid var(--fp-neutral-200);
+        }
+        table.fp-pubs-table thead th.fp-col-abdc,
+        table.fp-pubs-table thead th.fp-col-year,
+        table.fp-pubs-table thead th.fp-col-scopus { text-align: center; }
+        table.fp-pubs-table thead th.fp-col-doi { text-align: right; }
+        table.fp-pubs-table tbody td {
+          padding: 0 16px;
+          height: 52px;
+          vertical-align: middle;
+          border-bottom: 1px solid var(--fp-neutral-200);
+        }
+        table.fp-pubs-table tbody tr:nth-child(odd) { background: var(--fp-white); }
+        table.fp-pubs-table tbody tr:nth-child(even) { background: var(--fp-neutral-50); }
+        table.fp-pubs-table tbody tr {
+          transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        table.fp-pubs-table tbody tr:hover {
+          background: var(--fp-primary-50) !important;
+          box-shadow: inset 3px 0 0 0 var(--fp-primary-500);
+        }
+        table.fp-pubs-table .fp-col-title { width: 40%; max-width: 0; }
+        table.fp-pubs-table .fp-col-type { width: 10%; text-align: center; }
+        table.fp-pubs-table .fp-col-source { width: 25%; }
+        table.fp-pubs-table .fp-col-abdc { width: 8%; text-align: center; }
+        table.fp-pubs-table .fp-col-year { width: 7%; text-align: center; font-variant-numeric: tabular-nums; }
+        table.fp-pubs-table .fp-col-scopus { width: 5%; text-align: center; }
+        table.fp-pubs-table .fp-col-doi { width: 10%; text-align: right; }
+        .fp-type-pill {
+          display: inline-block;
+          background: var(--fp-primary-100);
+          color: var(--fp-primary-700);
+          font-size: 12px;
+          font-weight: 500;
+          padding: 4px 10px;
+          border-radius: 20px;
+        }
+        .fp-scopus-dot {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: var(--fp-primary-500);
+          cursor: default;
+        }
+        .fp-scopus-dot.fp-off {
+          background: var(--fp-neutral-200);
+        }
+        .fp-doi-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          color: var(--fp-primary-700);
+          font-weight: 500;
+          font-size: 13px;
+          text-decoration: none;
+        }
+        .fp-doi-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+        @media (max-width: 1199px) {
+          .fp-info-grid { grid-template-columns: 1fr 1fr; }
+          .fp-analytics-inner { grid-template-columns: 1fr; }
+          .fp-table-card { overflow-x: auto; }
+          .element-container:has(.fp-analytics-marker)
+            + .element-container
+            [data-testid="stHorizontalBlock"]
+            [data-testid="column"] {
+            align-items: center !important;
+          }
+          .fp-stats-panel {
+            border-left: none;
+            padding-left: 0;
+            border-top: 1px solid var(--fp-neutral-200);
+            padding-top: 20px;
+            margin-top: 16px;
+            max-width: 36rem;
+          }
+        }
+        @media (max-width: 767px) {
+          .fp-header { grid-template-columns: 1fr; }
+          .fp-header-right { align-items: flex-start; text-align: left; justify-content: flex-start; }
+          .fp-info-grid { grid-template-columns: 1fr; }
+          .fp-nav-inner { flex-wrap: wrap; height: auto; min-height: 56px; padding: 8px 16px; }
+          .element-container:has(nav.fp-nav-sticky) {
+            margin-left: -1.25rem;
+            margin-right: -1.25rem;
+            padding-left: 1.25rem;
+            padding-right: 1.25rem;
+          }
+        }
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -736,6 +1496,67 @@ def format_recent_items(value: str) -> str:
     return "<br>".join(parts)
 
 
+def format_recent_publications_ro(value: object) -> str:
+    """Recent publications cell: year prefix + clamped lines, blue palette."""
+    raw = str(value or "")
+    parts = [p.strip() for p in raw.split("|") if p.strip()]
+    if not parts:
+        return "—"
+    chunks: list[str] = []
+    for p in parts:
+        m = re.match(r"^(\d{4})\s*[-–—:]\s*(.+)$", p)
+        if not m:
+            m = re.match(r"^(\d{4})\s+(.+)$", p)
+        if m:
+            year, title = m.group(1), m.group(2).strip()
+            chunks.append(
+                f'<div class="ro-pub-line"><span class="ro-pub-year">{escape(year)}</span> {escape(title)}</div>'
+            )
+        else:
+            chunks.append(f'<div class="ro-pub-line">{escape(p)}</div>')
+    return f'<div class="ro-articles">{"".join(chunks)}</div>'
+
+
+def _research_clear_filters_callback() -> None:
+    st.session_state["_ro_clear_now"] = True
+
+
+def _research_status_pill_class(status_value: str) -> str:
+    """Semantic colours for research table status column."""
+    s = str(status_value).strip()
+    if s == "Faculty sufficiency":
+        return "ro-status-pill ro-status-sufficiency"
+    if s == "Research committee review":
+        return "ro-status-pill ro-status-committee"
+    if s == "HOD Consideration":
+        return "ro-status-pill ro-status-hod"
+    return "ro-status-pill ro-status-default"
+
+
+def _research_count_active_filters(
+    faculty_choice: str,
+    campus_filter: list[str],
+    campus_options: list[str],
+    status_filter: list[str],
+    statuses: list[str],
+    name_query: str,
+    field_filter: list[str],
+    research_fields: list[str],
+) -> int:
+    n = 0
+    if faculty_choice != "All":
+        n += 1
+    if campus_options and set(campus_filter or []) != set(campus_options):
+        n += 1
+    if statuses and set(status_filter or []) != set(statuses):
+        n += 1
+    if name_query.strip():
+        n += 1
+    if research_fields and set(field_filter or []) != set(research_fields):
+        n += 1
+    return n
+
+
 def normalize_research_field(value: object) -> str:
     if value is None:
         return ""
@@ -743,6 +1564,133 @@ def normalize_research_field(value: object) -> str:
     text = re.sub(r"\s+", " ", text)
     text = re.sub(r"\*+$", "", text).strip()
     return text
+
+
+def normalize_source_title_for_match(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    text = text.replace("&", " and ")
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _pick_column(columns: list[str], candidates: tuple[str, ...]) -> str | None:
+    normalized = {col: str(col).strip().lower() for col in columns}
+    for candidate in candidates:
+        for col, norm in normalized.items():
+            if norm == candidate:
+                return col
+    for candidate in candidates:
+        for col, norm in normalized.items():
+            if candidate in norm:
+                return col
+    return None
+
+
+def _abdc_rank_priority(rank: str) -> int:
+    normalized = str(rank or "").strip().upper()
+    order = {"A*": 4, "A": 3, "B": 2, "C": 1}
+    return order.get(normalized, 0)
+
+
+def _sheet_with_abdc_data(path: Path) -> str | int:
+    if path.suffix.lower() not in {".xlsx", ".xls"}:
+        return 0
+    try:
+        xl = pd.ExcelFile(path)
+        for preferred in ("2025 JQL", "2022 JQL", "2019 JQL"):
+            if preferred in xl.sheet_names:
+                return preferred
+        return xl.sheet_names[0] if xl.sheet_names else 0
+    except Exception:
+        return 0
+
+
+def _extract_abdc_table(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """Find header row containing Journal Title and return normalized table."""
+    if df_raw.empty:
+        return pd.DataFrame()
+    header_row_idx: int | None = None
+    for idx, row in df_raw.iterrows():
+        values = [str(v).strip().lower() for v in row.tolist() if str(v).strip() and str(v).lower() != "nan"]
+        if any("journal title" in v for v in values):
+            header_row_idx = int(idx)
+            break
+    if header_row_idx is None:
+        return pd.DataFrame()
+    headers = [str(v).strip() for v in df_raw.iloc[header_row_idx].tolist()]
+    body = df_raw.iloc[header_row_idx + 1 :].copy()
+    body.columns = headers
+    body = body.fillna("")
+    return body
+
+
+@st.cache_data(show_spinner=False)
+def load_abdc_lookup() -> tuple[dict[str, str], str]:
+    """Load ABDC journal list from known local paths and return title->rank mapping."""
+    abdc_path: Path | None = None
+    for candidate in ABDC_CANDIDATE_PATHS:
+        if candidate.exists():
+            abdc_path = candidate
+            break
+    if abdc_path is None:
+        return {}, ""
+
+    if abdc_path.suffix.lower() == ".csv":
+        abdc_df = pd.read_csv(abdc_path, dtype=str).fillna("")
+    else:
+        sheet = _sheet_with_abdc_data(abdc_path)
+        raw = pd.read_excel(abdc_path, sheet_name=sheet, header=None, dtype=str)
+        abdc_df = _extract_abdc_table(raw)
+    if abdc_df.empty:
+        return {}, str(abdc_path)
+
+    title_col = _pick_column(
+        abdc_df.columns.tolist(),
+        ("journal title", "title", "journal", "source title", "journal name"),
+    )
+    rank_col = _pick_column(
+        abdc_df.columns.tolist(),
+        ("abdc", "abdc rank", "rank", "rating", "ranking"),
+    )
+    if title_col is None:
+        return {}, str(abdc_path)
+
+    lookup: dict[str, str] = {}
+    for _, row in abdc_df.iterrows():
+        title_norm = normalize_source_title_for_match(row.get(title_col, ""))
+        if not title_norm:
+            continue
+        rank_val = str(row.get(rank_col, "")).strip().upper() if rank_col else ""
+        if title_norm not in lookup:
+            lookup[title_norm] = rank_val
+            continue
+        prev_rank = lookup[title_norm]
+        if _abdc_rank_priority(rank_val) > _abdc_rank_priority(prev_rank):
+            lookup[title_norm] = rank_val
+
+    return lookup, str(abdc_path)
+
+
+def classify_abdc_status(
+    publication_type: object, source_title: object, abdc_lookup: dict[str, str], abdc_available: bool
+) -> str:
+    pub_type = str(publication_type or "").strip().lower()
+    if pub_type != "journal":
+        return "N/A"
+    if not abdc_available:
+        return "ABDC list missing"
+    title_key = normalize_source_title_for_match(source_title)
+    if not title_key:
+        return "Unknown source"
+    if title_key in abdc_lookup:
+        rank = str(abdc_lookup.get(title_key, "")).strip().upper()
+        if rank in {"A*", "A", "B", "C"}:
+            return f"ABDC {rank}"
+        return "ABDC listed"
+    return "Not in ABDC"
 
 
 def _normalize_orcid_from_cell(raw: object) -> str:
@@ -823,6 +1771,9 @@ def merge_roster(summary_df: pd.DataFrame, roster_path: Path) -> pd.DataFrame:
             "orcid": orcid_out,
             "scopus_id": str(rseries.get(c_scopus, "")).strip() if c_scopus else "",
             "identifier_source": "",
+            "scopus_publications_last_6_years": 0,
+            "non_scopus_publications_last_6_years": 0,
+            "non_scopus_journal_publications_last_6_years": 0,
             "total_publications_last_6_years": 0,
             "journal_publications_last_6_years": 0,
             "recent_3_articles": "",
@@ -835,9 +1786,16 @@ def merge_roster(summary_df: pd.DataFrame, roster_path: Path) -> pd.DataFrame:
         return summary_df
 
     stub_df = pd.DataFrame(stub_list)
+    numeric_summary_cols = (
+        "journal_publications_last_6_years",
+        "total_publications_last_6_years",
+        "scopus_publications_last_6_years",
+        "non_scopus_publications_last_6_years",
+        "non_scopus_journal_publications_last_6_years",
+    )
     for col in summary_df.columns:
         if col not in stub_df.columns:
-            if col in ("journal_publications_last_6_years", "total_publications_last_6_years"):
+            if col in numeric_summary_cols:
                 stub_df[col] = 0
             else:
                 stub_df[col] = ""
@@ -882,6 +1840,14 @@ def load_data(cohort: str) -> tuple[pd.DataFrame, pd.DataFrame, Path, Path]:
     summary_df["total_publications_last_6_years"] = pd.to_numeric(
         summary_df.get("total_publications_last_6_years", 0), errors="coerce"
     ).fillna(0).astype(int)
+    for extra_sum_col in (
+        "scopus_publications_last_6_years",
+        "non_scopus_publications_last_6_years",
+        "non_scopus_journal_publications_last_6_years",
+    ):
+        summary_df[extra_sum_col] = pd.to_numeric(
+            summary_df.get(extra_sum_col, 0), errors="coerce"
+        ).fillna(0).astype(int)
 
     for col in ["department", "email", "telephone", "rank", "research_field"]:
         summary_df[col] = summary_df.get(col, "").fillna("").astype(str)
@@ -917,27 +1883,16 @@ def load_data(cohort: str) -> tuple[pd.DataFrame, pd.DataFrame, Path, Path]:
     publications_df["doi"] = publications_df.get("doi", "").fillna("").astype(str)
     publications_df["cover_date"] = publications_df.get("cover_date", "").fillna("").astype(str)
     publications_df["year"] = pd.to_numeric(publications_df.get("year", 0), errors="coerce").fillna(0).astype(int)
+    if "record_source" not in publications_df.columns:
+        publications_df["record_source"] = "Scopus"
+    else:
+        publications_df["record_source"] = publications_df["record_source"].fillna("Scopus").astype(str)
+    if "indexed_in_scopus" not in publications_df.columns:
+        publications_df["indexed_in_scopus"] = "Yes"
+    else:
+        publications_df["indexed_in_scopus"] = publications_df["indexed_in_scopus"].fillna("Yes").astype(str)
 
     return summary_df, publications_df, summary_path, pubs_path
-
-
-def format_updated_time(path: Path) -> str:
-    timestamp = datetime.fromtimestamp(path.stat().st_mtime)
-    return timestamp.strftime("%d %b %Y, %H:%M")
-
-
-def render_freshness_banner(summary_path: Path, pubs_path: Path) -> None:
-    summary_updated = format_updated_time(summary_path)
-    pubs_updated = format_updated_time(pubs_path)
-    st.markdown(
-        f"""
-        <div class="data-freshness">
-          <div><strong>Data freshness:</strong> outputs are loaded from the latest generated CSV files.</div>
-          <div class="freshness-meta">Summary updated: {summary_updated} | Publications updated: {pubs_updated} | Weekly automation: Monday 05:00 UTC</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 def _orcid_row_key(value: object) -> str:
@@ -1043,6 +1998,10 @@ def _fmt_kpi_num(val: object) -> str:
 
 
 def render_landing() -> None:
+    st.markdown(
+        "<style>.stApp{background:var(--fp-neutral-50)!important;}</style>",
+        unsafe_allow_html=True,
+    )
     kpi = load_landing_kpi_stats()
     fac = _fmt_kpi_num(kpi.get("total_faculty"))
     pubs = _fmt_kpi_num(kpi.get("total_pubs"))
@@ -1063,15 +2022,13 @@ def render_landing() -> None:
         """
         <nav class="nexus-nav-shell" aria-label="Primary">
           <div class="nexus-nav">
-            <a class="nexus-nav-active" href="?">Dashboard</a>
+            <a class="nexus-nav-active" href="?" target="_self">Dashboard</a>
             <span class="nexus-nav-sep">·</span>
-            <a href="?page=research">Faculty profiles</a>
+            <a href="?page=research" target="_self">Publications</a>
             <span class="nexus-nav-sep">·</span>
-            <a href="?page=research">Publications</a>
+            <a href="?page=teaching" target="_self">Teaching load</a>
             <span class="nexus-nav-sep">·</span>
-            <a href="?page=teaching">Teaching load</a>
-            <span class="nexus-nav-sep">·</span>
-            <a href="?page=analytics">Analytics settings</a>
+            <a href="?page=analytics" target="_self">Analytics</a>
           </div>
         </nav>
         <div class="nexus-hero-v2">
@@ -1084,17 +2041,17 @@ def render_landing() -> None:
           </div>
         </div>
         <div class="nexus-module-grid">
-          <a class="nexus-module" href="?page=research">
+          <a class="nexus-module" href="?page=research" target="_self">
             <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/><circle cx="17" cy="7" r="1.2" fill="currentColor" stroke="none"/></svg></span>
             <span class="nexus-module-title">Research Output</span>
-            <span class="nexus-module-desc">Publications, Scopus activity, and faculty sufficiency views.</span>
+            <span class="nexus-module-desc">Publications (Scopus + ORCID), and faculty sufficiency views.</span>
           </a>
-          <a class="nexus-module" href="?page=teaching">
+          <a class="nexus-module" href="?page=teaching" target="_self">
             <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5v12l8-2.5 8 2.5V6.5"/><path d="M12 4v12"/><path d="M4 6.5L12 4l8 2.5"/></svg></span>
             <span class="nexus-module-title">Teaching load</span>
             <span class="nexus-module-desc">Sections per lecturer, estimated weekly contact hours, and workload chart.</span>
           </a>
-          <a class="nexus-module" href="?page=analytics">
+          <a class="nexus-module" href="?page=analytics" target="_self">
             <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.2"/><circle cx="17" cy="6" r="2.2"/><circle cx="14" cy="17" r="2.2"/><path d="M8.5 9.5 12 15M15.5 8 12 15M9 8l8-1"/></svg></span>
             <span class="nexus-module-title">Institutional Analytics</span>
             <span class="nexus-module-desc">Aggregated faculty insight and leadership dashboards (in development).</span>
@@ -1113,7 +2070,7 @@ def render_landing() -> None:
             <div class="nexus-kpi-value">"""
         + escape(pubs)
         + """</div>
-            <div class="nexus-kpi-sub">Sum · last 6 years (Scopus pipeline)</div>
+            <div class="nexus-kpi-sub">Sum · last 6 years (Scopus + ORCID-only, deduplicated)</div>
           </div>
           <div class="nexus-kpi-card">
             <div class="nexus-kpi-label">Teaching load hours</div>
@@ -1505,30 +2462,82 @@ def render_analytics_placeholder() -> None:
 
 
 def render_master_table() -> None:
-    if st.button("Home", key="nav_home_research"):
-        go_home()
-    st.title("Research output")
     st.markdown(
-        '<p class="nexus-dashboard-subtitle">Data refreshed every Monday</p>',
+        "<style>.stApp{background:var(--fp-neutral-50)!important;}</style>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <nav class="fp-nav fp-nav-inner fp-nav-sticky ro-research-nav" aria-label="Breadcrumb">
+          <div class="fp-nav-crumb">
+            <a href="?" target="_self">Home</a>
+            <span class="fp-nav-sep">/</span>
+            <span class="fp-nav-current">Research Output</span>
+          </div>
+        </nav>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    clock_svg = (
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>'
+        '<path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+    )
+    st.markdown(
+        f"""
+        <header class="ro-page-header">
+          <h1>Research Output</h1>
+          <div class="ro-caption-refresh">{clock_svg}<span>Data refreshed every Monday</span></div>
+          <div class="ro-accent-bar" aria-hidden="true"></div>
+        </header>
+        """,
         unsafe_allow_html=True,
     )
 
     preferred_status_order = ["Faculty sufficiency", "HOD Consideration", "Research committee review"]
+    faculty_options = ("All", "Full-time", "Part-time")
     if "dashboard_faculty_cohort" not in st.session_state:
-        st.session_state.dashboard_faculty_cohort = (
-            "Part-time" if cohort_from_query_params() == "part" else "Full-time"
-        )
+        st.session_state.dashboard_faculty_cohort = "All"
+    elif st.session_state.dashboard_faculty_cohort not in faculty_options:
+        st.session_state.dashboard_faculty_cohort = "All"
 
-    with st.expander("Filters", expanded=False):
+    prior_active = int(st.session_state.get("ro_active_filters", 0) or 0)
+    expander_title = f"Filters ({prior_active} active)" if prior_active else "Filters"
+
+    with st.expander(expander_title, expanded=False):
+        clear_pending = st.session_state.pop("_ro_clear_now", False)
+        if clear_pending:
+            st.session_state["dashboard_faculty_cohort"] = "All"
+
+        st.markdown(
+            '<span style="font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--fp-neutral-500);display:block;margin-bottom:4px;">Faculty</span>',
+            unsafe_allow_html=True,
+        )
         faculty_choice = st.radio(
-            "Faculty",
-            ["Full-time", "Part-time"],
+            "Faculty cohort",
+            list(faculty_options),
             horizontal=True,
             key="dashboard_faculty_cohort",
+            label_visibility="collapsed",
         )
-        cohort_key = "part" if faculty_choice == "Part-time" else "full"
 
-        summary_df, _, _, _ = load_data(cohort_key)
+        if faculty_choice == "Part-time":
+            summary_df, _, _, _ = load_data("part")
+            summary_df = summary_df.copy()
+            summary_df["_cohort_key"] = "part"
+        elif faculty_choice == "Full-time":
+            summary_df, _, _, _ = load_data("full")
+            summary_df = summary_df.copy()
+            summary_df["_cohort_key"] = "full"
+        else:
+            full_summary, _, _, _ = load_data("full")
+            part_summary, _, _, _ = load_data("part")
+            full_summary = full_summary.copy()
+            part_summary = part_summary.copy()
+            full_summary["_cohort_key"] = "full"
+            part_summary["_cohort_key"] = "part"
+            summary_df = pd.concat([full_summary, part_summary], ignore_index=True)
 
         present_statuses = [s for s in preferred_status_order if s in set(summary_df["status"].dropna().tolist())]
         other_statuses = sorted([s for s in summary_df["status"].dropna().unique().tolist() if s not in present_statuses])
@@ -1540,36 +2549,69 @@ def render_master_table() -> None:
             c for c in campus_present if c not in campus_preferred
         )
 
-        c_campus, c_status = st.columns([1.15, 1.15])
-        with c_campus:
-            campus_filter = st.multiselect("UNIC Entity (campus)", options=campus_options, default=campus_options)
-        with c_status:
-            status_filter = st.multiselect("Status", options=statuses, default=statuses)
-
-        st.markdown("**Research Field**")
-        field_selection: dict[str, bool] = {}
-
         grouped_fields: list[tuple[str, list[str]]] = [
             ("Accounting / Economics / Finance", ["Accounting", "Economics", "Finance"]),
             ("Digital Innovation", ["Blockchain"]),
             ("Management", ["Management", "Marketing", "Information Systems"]),
         ]
-
-        # Any unexpected field still appears as selectable in an extra group.
         known_fields = {item for _, group_items in grouped_fields for item in group_items}
         extra_fields = sorted([field for field in research_fields if field not in known_fields])
         if extra_fields:
             grouped_fields.append(("Other", extra_fields))
 
+        if clear_pending:
+            st.session_state["ro_campus_filter"] = list(campus_options)
+            st.session_state["ro_status_filter"] = list(statuses)
+            st.session_state["ro_name_query"] = ""
+            for field in research_fields:
+                fk = re.sub(r"\W+", "_", field.lower()).strip("_")
+                st.session_state[f"field_{fk}"] = True
+            for group_name, group_items in grouped_fields:
+                available_items = [item for item in group_items if item in research_fields]
+                if len(available_items) > 1:
+                    key_suffix = re.sub(r"\W+", "_", group_name.lower()).strip("_")
+                    st.session_state[f"field_group_all_{key_suffix}"] = True
+
+        if "ro_campus_filter" not in st.session_state:
+            st.session_state["ro_campus_filter"] = list(campus_options)
+        if "ro_status_filter" not in st.session_state:
+            st.session_state["ro_status_filter"] = list(statuses)
+
+        ent_col, stat_col = st.columns(2)
+        _lbl = '<span style="font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--fp-neutral-500);display:block;margin-bottom:4px;">{}</span>'
+        with ent_col:
+            st.markdown(_lbl.format("UNIC Entity"), unsafe_allow_html=True)
+            campus_filter = st.multiselect(
+                "UNIC Entity",
+                options=campus_options,
+                key="ro_campus_filter",
+                placeholder="Select campus...",
+                label_visibility="collapsed",
+            )
+        with stat_col:
+            st.markdown(_lbl.format("Status"), unsafe_allow_html=True)
+            status_filter = st.multiselect(
+                "Status",
+                options=statuses,
+                key="ro_status_filter",
+                placeholder="Select status...",
+                label_visibility="collapsed",
+            )
+
+        st.markdown('<div class="ro-field-section-label">Research Field</div>', unsafe_allow_html=True)
+
+        field_selection: dict[str, bool] = {}
         group_cols = st.columns(len(grouped_fields))
         for idx, (group_name, group_items) in enumerate(grouped_fields):
             available_items = [item for item in group_items if item in research_fields]
             if not available_items:
                 continue
-
             key_suffix = re.sub(r"\W+", "_", group_name.lower()).strip("_")
             with group_cols[idx]:
-                st.markdown(f"**{group_name}**")
+                st.markdown(
+                    f'<p class="ro-field-group-title">{escape(group_name)}</p>',
+                    unsafe_allow_html=True,
+                )
                 if len(available_items) > 1:
                     select_all = st.checkbox("Select all", value=True, key=f"field_group_all_{key_suffix}")
                 else:
@@ -1584,7 +2626,16 @@ def render_master_table() -> None:
 
         field_filter = [field for field, is_selected in field_selection.items() if is_selected]
 
-        name_query = st.text_input("Search name", placeholder="Type a faculty name...")
+        _, clear_col = st.columns([3, 1])
+        with clear_col:
+            st.button(
+                "✕ Clear all filters",
+                key="ro_clear_all",
+                on_click=_research_clear_filters_callback,
+                type="secondary",
+            )
+
+    name_query = str(st.session_state.get("ro_name_query", ""))
 
     filtered = summary_df.copy()
     if name_query:
@@ -1593,91 +2644,149 @@ def render_master_table() -> None:
         filtered = filtered[filtered["_campus_filter"].isin(campus_filter)]
     filtered = filtered[filtered["status"].isin(status_filter)]
     filtered = filtered[filtered["research_field"].isin(field_filter)]
-    # Exclude this person from the dashboard table regardless of source spelling variations.
-    filtered = filtered[~filtered["name"].str.contains(r"\bria\s+(morphidou|morphitou)\b", case=False, na=False, regex=True)]
-    filtered = filtered.sort_values(
-      by=["name"],
-      ascending=[True],
+    filtered = filtered[
+        ~filtered["name"].str.contains(r"\bria\s+(morphidou|morphitou)\b", case=False, na=False, regex=True)
+    ]
+    filtered = filtered.sort_values(by=["name"], ascending=[True])
+
+    st.session_state["ro_active_filters"] = _research_count_active_filters(
+        faculty_choice,
+        list(campus_filter),
+        campus_options,
+        list(status_filter),
+        statuses,
+        str(name_query),
+        field_filter,
+        research_fields,
     )
+
+    n_people = len(filtered)
+    n_suff = int((filtered["status"] == "Faculty sufficiency").sum())
+    n_tot_pub = int(filtered["total_publications_last_6_years"].sum())
+    n_j_pub = int(filtered["journal_publications_last_6_years"].sum())
+
+    ico_users = '<span class="ro-kpi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>'
+    ico_shield = '<span class="ro-kpi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>'
+    ico_docs = '<span class="ro-kpi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>'
+    ico_book = '<span class="ro-kpi-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" stroke-width="1.6"/><path d="M8 7h8M8 11h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>'
 
     st.markdown(
         f"""
-        <div class="kpi-wrap">
-          <div class="kpi-card"><div class="kpi-label">People Visible</div><div class="kpi-value">{len(filtered)}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Faculty Sufficiency</div><div class="kpi-value">{int((filtered['status'] == 'Faculty sufficiency').sum())}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Total Publications Visible</div><div class="kpi-value">{int(filtered['total_publications_last_6_years'].sum())}</div></div>
-          <div class="kpi-card"><div class="kpi-label">Journal Publications Visible</div><div class="kpi-value">{int(filtered['journal_publications_last_6_years'].sum())}</div></div>
+        <div class="ro-kpi-grid">
+          <div class="ro-kpi-card"><div class="ro-kpi-top">{ico_users}<span>People Visible</span></div><div class="ro-kpi-val">{n_people:,}</div></div>
+          <div class="ro-kpi-card"><div class="ro-kpi-top">{ico_shield}<span>Faculty Sufficiency</span></div><div class="ro-kpi-val">{n_suff:,}</div></div>
+          <div class="ro-kpi-card"><div class="ro-kpi-top">{ico_docs}<span>Total Publications Visible</span></div><div class="ro-kpi-val">{n_tot_pub:,}</div></div>
+          <div class="ro-kpi-card"><div class="ro-kpi-top">{ico_book}<span>Journal Publications Visible</span></div><div class="ro-kpi-val">{n_j_pub:,}</div></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     export_summary = filtered.drop(columns=["_campus_filter"], errors="ignore")
-    st.download_button(
-        label="Download filtered summary CSV",
-        data=export_summary.to_csv(index=False).encode("utf-8"),
-        file_name="summary_filtered.csv",
-        mime="text/csv",
-    )
+    csv_bytes = export_summary.to_csv(index=False).encode("utf-8")
 
-    rows_html = []
+    search_col, dl_col = st.columns([2, 1], vertical_alignment="bottom")
+    with search_col:
+        st.text_input(
+            "Search by faculty name",
+            placeholder="Search by faculty name...",
+            key="ro_name_query",
+        )
+    with dl_col:
+        st.download_button(
+            label="⭳ Download CSV",
+            data=csv_bytes,
+            file_name="summary_filtered.csv",
+            mime="text/csv",
+            key="ro_dl_inline",
+            use_container_width=True,
+        )
+
+    rows_html: list[str] = []
     for _, row in filtered.iterrows():
-        status_value = row["status"]
-        if status_value == "Faculty sufficiency":
-            status_class = "status-ok"
-        elif status_value == "HOD Consideration":
-            status_class = "status-hod"
-        else:
-            status_class = "status-no"
+        status_value = str(row["status"])
         orcid_cell = str(row["orcid"]).strip()
         orcid_for_url = _normalize_orcid_from_cell(orcid_cell) or orcid_cell
         encoded_orcid = quote_plus(orcid_for_url)
         ue = str(row.get("unic_entity", "")).strip()
-        if ue == "UNIC Athens":
-            entity_class = "entity-pill entity-athens"
-        elif ue == "UNIC Nicosia":
-            entity_class = "entity-pill entity-nicosia"
-        else:
-            entity_class = "entity-pill"
         entity_text = escape(ue) if ue else "—"
+        row_cohort_key = str(row.get("_cohort_key", "full")).strip() or "full"
         rows_html.append(
             "".join(
                 [
                     "<tr>",
-                    f"<td><a class='name-link' href='?page=research&cohort={cohort_key}&orcid={encoded_orcid}'>{escape(str(row['name']))}</a></td>",
-                    f"<td><span class='{entity_class}'>{entity_text}</span></td>",
-                    f"<td>{escape(str(row['research_field'])) or '-'}</td>",
-                    f"<td class='articles-cell'>{format_recent_items(row['recent_3_articles'])}</td>",
-                    f"<td>{int(row['total_publications_last_6_years'])}</td>",
-                    f"<td>{int(row['journal_publications_last_6_years'])}</td>",
-                    f"<td><span class='status-pill {status_class}'>{escape(status_value)}</span></td>",
+                    f"<td style=\"width:15%;\"><a class=\"ro-name-link\" href=\"?page=research&cohort={row_cohort_key}&orcid={encoded_orcid}\" target=\"_self\">{escape(str(row['name']))}</a></td>",
+                    f"<td style=\"width:10%;\"><span class=\"ro-entity-pill\">{entity_text}</span></td>",
+                    f"<td style=\"width:10%;\">{escape(str(row['research_field'])) or '—'}</td>",
+                    f"<td style=\"width:30%;\">{format_recent_publications_ro(row['recent_3_articles'])}</td>",
+                    f"<td style=\"width:8%;text-align:center;font-weight:600;color:var(--fp-primary-900);\">{int(row['total_publications_last_6_years']):,}</td>",
+                    f"<td style=\"width:8%;text-align:center;font-weight:600;color:var(--fp-primary-900);\">{int(row['journal_publications_last_6_years']):,}</td>",
+                    f"<td style=\"width:14%;\"><span class=\"{_research_status_pill_class(status_value)}\">{escape(status_value)}</span></td>",
                     "</tr>",
                 ]
             )
         )
 
+    empty_body = ""
+    if not rows_html:
+        empty_body = """
+          <tr><td colspan="7">
+            <div class="ro-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <div>No results match your filters</div>
+            </div>
+          </td></tr>
+        """
+    else:
+        empty_body = "".join(rows_html)
+
     table_html = f"""
-    <div class="table-shell">
-      <table class="nexus-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>UNIC Entity</th>
-            <th>Research Field</th>
-            <th>Recent 3 Publications</th>
-            <th class='split-header'><span class='main'>Total</span><span class='sub'>(6 Years)</span></th>
-            <th class='split-header'><span class='main'>PRJ</span><span class='sub'>(6 Years)</span></th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {''.join(rows_html) if rows_html else '<tr><td colspan="7">No matching records.</td></tr>'}
-        </tbody>
-      </table>
+    <div class="ro-table-shell">
+      <div class="ro-table-card">
+        <table class="ro-table">
+          <colgroup>
+            <col style="width:15%" /><col style="width:10%" /><col style="width:10%" /><col style="width:30%" />
+            <col style="width:8%" /><col style="width:8%" /><col style="width:14%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>UNIC Entity</th>
+              <th>Research Field</th>
+              <th>Recent 3 Publications</th>
+              <th class="ro-th-center">Total<span class="ro-th-sub">(6 Years)</span></th>
+              <th class="ro-th-center">PRJ<span class="ro-th-sub">(6 Years)</span></th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {empty_body}
+          </tbody>
+        </table>
+      </div>
     </div>
     """
 
     st.markdown(table_html, unsafe_allow_html=True)
+    if filtered.empty:
+        _, ce, _ = st.columns([1, 1, 1])
+        with ce:
+            st.button(
+                "Clear all filters",
+                key="ro_empty_clear",
+                on_click=_research_clear_filters_callback,
+            )
+
+
+def _profile_chart_bucket(pub_type: object) -> str:
+    s = str(pub_type).strip().lower()
+    if s == "journal":
+        return "Journal"
+    if s == "conference":
+        return "Conference"
+    if s in ("book", "book series"):
+        return "Book"
+    return "Other"
 
 
 def render_profile_page(
@@ -1685,8 +2794,6 @@ def render_profile_page(
     publications_df: pd.DataFrame,
     orcid: str,
     cohort: str,
-    summary_path: Path,
-    pubs_path: Path,
 ) -> None:
     orcid_key = _orcid_row_key(orcid)
     person_df = summary_df[summary_df["orcid"].map(_orcid_row_key) == orcid_key]
@@ -1706,135 +2813,306 @@ def render_profile_page(
         return
 
     person = person_df.iloc[0]
+    person_pubs = publications_df[publications_df["orcid"].map(_orcid_row_key) == orcid_key].copy()
+    person_pubs = person_pubs.sort_values(by=["year", "cover_date"], ascending=[False, False])
+    abdc_lookup, abdc_path = load_abdc_lookup()
+    abdc_available = bool(abdc_lookup)
+    if not person_pubs.empty:
+        person_pubs["abdc_status"] = person_pubs.apply(
+            lambda row: classify_abdc_status(
+                row.get("publication_type", ""),
+                row.get("source_title", ""),
+                abdc_lookup,
+                abdc_available,
+            ),
+            axis=1,
+        )
+    person_pubs_all = person_pubs.copy()
 
-    pb1, pb2 = st.columns(2)
-    with pb1:
-        if st.button("Home", key="nav_home_profile"):
-            go_home()
-    with pb2:
-        if st.button("Back to Research output", key="nav_back_profile"):
-            back_to_research_table()
+    st.markdown(
+        "<style>.stApp{background:var(--fp-neutral-50)!important;}</style>",
+        unsafe_allow_html=True,
+    )
 
-    cohort_title = "Part-time faculty" if cohort == "part" else "Full-time faculty"
-    st.title(f"{person['name']} - Profile")
-    st.caption(f"{cohort_title} — all Scopus publications in the last 6 years")
-    render_freshness_banner(summary_path, pubs_path)
+    cohort_q = str(cohort).strip().lower()
+    if cohort_q not in ("full", "part"):
+        cohort_q = "full"
+    research_href = f"?page=research&cohort={cohort_q}"
 
     st.markdown(
         f"""
-        <div class="profile-grid">
-          <div class="profile-card"><div class="profile-label">Name</div><div class="profile-value">{escape(str(person['name']))}</div></div>
-          <div class="profile-card"><div class="profile-label">Department</div><div class="profile-value">{escape(str(person['department'])) or '-'}</div></div>
-          <div class="profile-card"><div class="profile-label">UNIC Entity</div><div class="profile-value">{escape(str(person.get('unic_entity', '')).strip()) or '—'}</div></div>
-          <div class="profile-card"><div class="profile-label">Research Field</div><div class="profile-value">{escape(str(person['research_field'])) or '-'}</div></div>
-          <div class="profile-card"><div class="profile-label">Rank</div><div class="profile-value">{escape(str(person['rank'])) or '-'}</div></div>
-          <div class="profile-card"><div class="profile-label">Email</div><div class="profile-value">{escape(str(person['email'])) or '-'}</div></div>
-          <div class="profile-card"><div class="profile-label">Mobile / Telephone</div><div class="profile-value">{escape(str(person['telephone'])) or '-'}</div></div>
-          <div class="profile-card"><div class="profile-label">ORCID</div><div class="profile-value">{escape(str(person['orcid']))}</div></div>
+        <nav class="fp-nav fp-nav-inner fp-nav-sticky" aria-label="Breadcrumb">
+          <div class="fp-nav-crumb">
+            <a href="?" target="_self">Home</a>
+            <span class="fp-nav-sep">/</span>
+            <a href="{escape(research_href, quote=True)}" target="_self">Research output</a>
+            <span class="fp-nav-sep">/</span>
+            <span class="fp-nav-current">Faculty profile</span>
+          </div>
+        </nav>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    role_text = escape(str(person.get("rank", "")).strip() or "—")
+    dept_text = escape(str(person.get("department", "")).strip() or "—")
+    institution_text = escape(str(person.get("unic_entity", "")).strip() or "—")
+    research_field_text = escape(str(person.get("research_field", "")).strip() or "—")
+    contact_text = escape(str(person.get("telephone", "")).strip() or "—")
+    email_text = str(person.get("email", "")).strip()
+    email_href = f"mailto:{email_text}" if email_text else "#"
+    orcid_value = _normalize_orcid_from_cell(person.get("orcid", "")) or str(person.get("orcid", "")).strip()
+    orcid_href = f"https://orcid.org/{orcid_value}" if orcid_value else "#"
+    display_name = escape(str(person.get("name", "")))
+
+    ico_rf = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="#64B5F6" stroke-width="1.6" stroke-linecap="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="#64B5F6" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 7h8M8 11h8" stroke="#64B5F6" stroke-width="1.6" stroke-linecap="round"/></svg>"""
+    ico_rank = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 10 12 5l10 5-10 5L2 10Z" stroke="#64B5F6" stroke-width="1.6" stroke-linejoin="round"/><path d="M22 10v1l-10 5L2 11v-1" stroke="#64B5F6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11.5V17c0 1.7 2.2 3 6 3s6-1.3 6-3v-5.5" stroke="#64B5F6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>"""
+    ico_inst = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" stroke="#64B5F6" stroke-width="1.6" stroke-linejoin="round"/></svg>"""
+    ico_contact = """<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M22 16.92V19a2 2 0 0 1-2.18 2A19.86 19.86 0 0 1 3 5.18 2 2 0 0 1 5 3h2.09a2 2 0 0 1 2 1.72c.12.81.3 1.6.54 2.36a2 2 0 0 1-.45 2.11L8.09 10.91a16 16 0 0 0 6 6l1.72-1.72a2 2 0 0 1 2.11-.45c.76.24 1.55.42 2.36.54A2 2 0 0 1 22 16.92Z" stroke="#64B5F6" stroke-width="1.6" stroke-linejoin="round"/></svg>"""
+    svg_orcid = """<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#1565C0"/><text x="12" y="15" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" font-family="Inter, sans-serif">iD</text></svg>"""
+    svg_mail = """<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#1565C0" stroke-width="1.6"/><path d="m3 7 9 6 9-6" stroke="#1565C0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>"""
+    svg_ext = """<svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 14 21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>"""
+
+    st.markdown(
+        f"""
+        <header class="fp-header">
+          <div class="fp-header-left">
+            <div class="fp-header-text">
+              <h1 class="fp-h1">{display_name}</h1>
+              <div class="fp-header-sub">{role_text}, {dept_text}</div>
+            </div>
+          </div>
+          <div class="fp-header-right">
+            <a class="fp-link-icon" href="{escape(orcid_href, quote=True)}" target="_self" rel="noopener noreferrer">
+              {svg_orcid}
+              ORCID
+            </a>
+            <a class="fp-link-icon" href="{escape(email_href, quote=True)}" target="_self">
+              {svg_mail}
+              Email
+            </a>
+          </div>
+        </header>
+        <div class="fp-info-grid">
+          <div class="fp-info-card">
+            <div class="fp-info-card-top">{ico_rf}<span>Research field</span></div>
+            <div class="fp-info-card-val">{research_field_text}</div>
+          </div>
+          <div class="fp-info-card">
+            <div class="fp-info-card-top">{ico_rank}<span>Rank</span></div>
+            <div class="fp-info-card-val">{role_text}</div>
+          </div>
+          <div class="fp-info-card">
+            <div class="fp-info-card-top">{ico_inst}<span>Institution</span></div>
+            <div class="fp-info-card-val">{institution_text}</div>
+          </div>
+          <div class="fp-info-card">
+            <div class="fp-info-card-top">{ico_contact}<span>Contact</span></div>
+            <div class="fp-info-card-val fp-mono">{contact_text}</div>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    person_pubs = publications_df[publications_df["orcid"].map(_orcid_row_key) == orcid_key].copy()
-    person_pubs = person_pubs.sort_values(by=["year", "cover_date"], ascending=[False, False])
-
-    p1, p2 = st.columns([1.25, 1.25])
-    with p1:
-        title_query = st.text_input("Search publication title", placeholder="Type keywords...")
-    with p2:
-        type_options = sorted(person_pubs["publication_type"].dropna().unique().tolist())
-        type_filter = st.multiselect("Publication type", options=type_options, default=type_options)
-
-    if title_query:
-        person_pubs = person_pubs[person_pubs["title"].str.contains(title_query, case=False, na=False)]
-    if type_filter:
-        person_pubs = person_pubs[person_pubs["publication_type"].isin(type_filter)]
-
-    if not person_pubs.empty:
-      st.subheader("Publication Mix by Category")
-      chart_df = (
-        person_pubs["publication_type"]
-        .value_counts()
-        .rename_axis("publication_type")
-        .reset_index(name="count")
-      )
-      total_count = int(chart_df["count"].sum())
-      chart_df["pct"] = chart_df["count"] / total_count
-
-      donut_chart = (
-        alt.Chart(chart_df)
-        .mark_arc(innerRadius=70, cornerRadius=6)
-        .encode(
-          theta=alt.Theta(field="count", type="quantitative"),
-          color=alt.Color(
-            field="publication_type",
-            type="nominal",
-            legend=alt.Legend(title="Category", orient="right"),
-            scale=alt.Scale(
-              range=[
-                "#0f7b6c",
-                "#da5b2d",
-                "#1e4f9b",
-                "#be8f00",
-                "#7a3fa0",
-                "#2d8fb3",
-              ]
-            ),
-          ),
-          tooltip=[
-            alt.Tooltip("publication_type:N", title="Category"),
-            alt.Tooltip("count:Q", title="Count"),
-            alt.Tooltip("pct:Q", title="Percentage", format=".1%"),
-          ],
-        )
-        .properties(height=320)
-      )
-      st.altair_chart(donut_chart, use_container_width=True)
-
-    st.download_button(
-        label="Download this profile publications CSV",
-        data=person_pubs.to_csv(index=False).encode("utf-8"),
-        file_name=f"publications_{orcid}.csv",
-        mime="text/csv",
+    st.markdown(
+        '<div class="fp-section"><h2 class="fp-h2">Publications</h2></div>',
+        unsafe_allow_html=True,
     )
+
+    person_pubs = person_pubs_all.copy()
+
+    if not abdc_available:
+        st.markdown(
+            '<p class="fp-abdc-caption" style="max-width:min(1320px,98vw);margin:8px auto 0;padding:0 20px">'
+            "ABDC list not found. Add <code>ABDC.xlsx</code> (preferred) or <code>ABDC.csv</code> "
+            "in the project root to enable ABDC matching.</p>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        '<div class="fp-analytics-marker" aria-hidden="true"></div>',
+        unsafe_allow_html=True,
+    )
+    viz_left, viz_right = st.columns(2, gap="medium", vertical_alignment="center")
+
+    _typed = person_pubs.assign(
+        _b=lambda df: df["publication_type"].map(_profile_chart_bucket),
+    )
+    chart_buckets = (
+        _typed["_b"].value_counts().rename_axis("bucket").reset_index(name="count")
+    )
+    total_count = int(chart_buckets["count"].sum()) if not chart_buckets.empty else 0
+    if total_count > 0:
+        chart_buckets["pct"] = chart_buckets["count"] / total_count
+    else:
+        chart_buckets["pct"] = 0.0
+
+    indexed_series = (
+        person_pubs.get("indexed_in_scopus", "Yes")
+        .fillna("Yes")
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+    scopus_indexed_count = int((indexed_series == "yes").sum()) if len(person_pubs) else 0
+    non_scopus_indexed_count = int(len(indexed_series) - scopus_indexed_count) if len(person_pubs) else 0
+    abdc_series = person_pubs.get("abdc_status", "").fillna("").astype(str)
+    journal_series = person_pubs.get("publication_type", "").fillna("").astype(str).str.strip().str.lower()
+    is_journal = journal_series == "journal"
+    peer_reviewed_journal_count = int(is_journal.sum()) if len(person_pubs) else 0
+    scopus_peer_reviewed_journal_count = (
+        int(((indexed_series == "yes") & is_journal).sum()) if len(person_pubs) else 0
+    )
+    abdc_peer_reviewed_journal_count = (
+        int((is_journal & abdc_series.str.upper().str.startswith("ABDC")).sum()) if len(person_pubs) else 0
+    )
+
+    color_domain = ["Journal", "Conference", "Book", "Other"]
+    color_range = ["#1565C0", "#42A5F5", "#BBDEFB", "#90CAF9"]
+
+    with viz_left:
+        _lc, chart_mid, _rc = st.columns([1, 2, 1])
+        with chart_mid:
+            if total_count > 0:
+                donut_base = alt.Chart(chart_buckets).encode(
+                    theta=alt.Theta(field="count", type="quantitative", stack=True),
+                    color=alt.Color(
+                        field="bucket",
+                        type="nominal",
+                        legend=None,
+                        scale=alt.Scale(domain=color_domain, range=color_range),
+                    ),
+                    tooltip=[
+                        alt.Tooltip("bucket:N", title="Category"),
+                        alt.Tooltip("count:Q", title="Count"),
+                        alt.Tooltip("pct:Q", title="Share", format=".1%"),
+                    ],
+                )
+                donut_chart = donut_base.mark_arc(
+                    innerRadius=88, outerRadius=138, cornerRadius=2
+                ).encode(
+                    x=alt.value(180),
+                    y=alt.value(180),
+                )
+                # Plot is 360×360; arc is centered — stack count + label on the true center (180, 180).
+                cx = 180
+                y_count, y_label = 164, 196
+                center_big = (
+                    alt.Chart(pd.DataFrame({"t": [str(total_count)]}))
+                    .mark_text(
+                        align="center",
+                        baseline="middle",
+                        fontSize=36,
+                        fontWeight=700,
+                        color="#0A2540",
+                    )
+                    .encode(
+                        text=alt.Text("t:N"),
+                        x=alt.value(cx),
+                        y=alt.value(y_count),
+                    )
+                )
+                center_small = (
+                    alt.Chart(pd.DataFrame({"t": ["Total"]}))
+                    .mark_text(
+                        align="center",
+                        baseline="middle",
+                        fontSize=13,
+                        color="#6B7280",
+                    )
+                    .encode(
+                        text=alt.Text("t:N"),
+                        x=alt.value(cx),
+                        y=alt.value(y_label),
+                    )
+                )
+                layered = (
+                    (donut_chart + center_big + center_small)
+                    .properties(width=360, height=360)
+                    .configure(background="transparent")
+                    .configure_view(clip=False, stroke=None, fill=None)
+                )
+                st.altair_chart(layered, use_container_width=False, theme=None)
+            else:
+                st.caption("No publications in the current view.")
+
+    j_total = peer_reviewed_journal_count
+    with viz_right:
+        st.markdown(
+            f"""
+            <div class="fp-stats-panel">
+              <div class="fp-stats-label">Indexing</div>
+              <div class="fp-stats-body">
+                <span class="fp-num">{scopus_indexed_count}</span> Scopus indexed |
+                <span class="fp-num">{non_scopus_indexed_count}</span> Non-Scopus
+              </div>
+              <div class="fp-stats-sub">of <span class="fp-num">{total_count}</span> visible publications</div>
+              <div class="fp-stats-divider" aria-hidden="true"></div>
+              <div class="fp-stats-label">Journal types</div>
+              <div class="fp-stats-body">
+                <span class="fp-num">{scopus_peer_reviewed_journal_count}</span> Scopus indexed journals |
+                <span class="fp-num">{abdc_peer_reviewed_journal_count}</span> ABDC journal
+              </div>
+              <div class="fp-stats-sub">of <span class="fp-num">{j_total}</span> peer-reviewed journals</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     rows_html = []
     for _, pub in person_pubs.iterrows():
         doi_value = str(pub["doi"]).strip()
         doi_html = (
-            f"<a class='name-link' href='https://doi.org/{escape(doi_value)}' target='_blank'>{escape(doi_value)}</a>"
+            f'<a class="fp-doi-link" href="https://doi.org/{escape(doi_value, quote=True)}" target="_self" rel="noopener noreferrer">{svg_ext} DOI</a>'
             if doi_value
-            else "-"
+            else "—"
         )
+        idx_scopus = str(pub.get("indexed_in_scopus", "Yes")).strip() or "Yes"
+        scopus_yes = idx_scopus.lower() == "yes"
+        scopus_cell = (
+            f'<span class="fp-scopus-dot" title="Scopus indexed"></span>'
+            if scopus_yes
+            else f'<span class="fp-scopus-dot fp-off" title="Not Scopus indexed"></span>'
+        )
+        try:
+            y_raw = int(pub["year"])
+            year_disp = str(y_raw) if y_raw > 0 else "—"
+        except (TypeError, ValueError):
+            year_disp = "—"
+        ptype = escape(str(pub.get("publication_type", "")).strip() or "—")
         rows_html.append(
             "".join(
                 [
                     "<tr>",
-                    f"<td class='title-cell'>{escape(str(pub['title'])) or '-'}</td>",
-                    f"<td>{escape(str(pub['publication_type']))}</td>",
-                    f"<td>{escape(str(pub['source_title'])) or '-'}</td>",
-                    f"<td>{int(pub['year']) if int(pub['year']) > 0 else '-'}</td>",
-                    f"<td>{doi_html}</td>",
+                    f"<td class='fp-col-title'>{escape(str(pub['title'])) or '—'}</td>",
+                    f"<td class='fp-col-type'><span class='fp-type-pill'>{ptype}</span></td>",
+                    f"<td class='fp-col-source'>{escape(str(pub['source_title'])) or '—'}</td>",
+                    f"<td class='fp-col-abdc'>{escape(str(pub.get('abdc_status', '—')))}</td>",
+                    f"<td class='fp-col-year'>{year_disp}</td>",
+                    f"<td class='fp-col-scopus'>{scopus_cell}</td>",
+                    f"<td class='fp-col-doi'>{doi_html}</td>",
                     "</tr>",
                 ]
             )
         )
 
     table_html = f"""
-    <div class="table-shell">
-      <table class="nexus-table">
+    <div class="fp-table-card">
+      <table class="fp-pubs-table">
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Journal / Conference / Book Source</th>
-            <th>Year</th>
-            <th>DOI</th>
+            <th class="fp-col-title">Title</th>
+            <th class="fp-col-type">Type</th>
+            <th class="fp-col-source">Source</th>
+            <th class="fp-col-abdc">ABDC</th>
+            <th class="fp-col-year">Year</th>
+            <th class="fp-col-scopus">Scopus</th>
+            <th class="fp-col-doi">DOI</th>
           </tr>
         </thead>
         <tbody>
-          {''.join(rows_html) if rows_html else '<tr><td colspan="5">No matching publications found.</td></tr>'}
+          {''.join(rows_html) if rows_html else '<tr><td colspan="7">No matching publications found.</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -1849,14 +3127,12 @@ app_page = get_app_page()
 
 if selected_orcid:
     cohort_key = cohort_from_query_params()
-    summary_data, publications_data, active_summary_path, active_pubs_path = load_data(cohort_key)
+    summary_data, publications_data, _, _ = load_data(cohort_key)
     render_profile_page(
         summary_data,
         publications_data,
         selected_orcid,
         cohort_key,
-        active_summary_path,
-        active_pubs_path,
     )
 elif app_page == "research":
     render_master_table()
