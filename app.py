@@ -15,7 +15,11 @@ PART_PUBLICATIONS_PATH = BASE_DIR / "outputs" / "part_timers" / "publications_ra
 FULL_TIMER_ROSTER_PATH = BASE_DIR / "Full timers ORCID.csv"
 PART_TIMER_ROSTER_PATH = BASE_DIR / "Part timers ORCID.csv"
 # One roster row = one course section; used for teaching load estimates on dashboard + Teaching Analytics.
+# Data: Spring 2025 then Fall 2025 (BUS), concatenated in that order.
+SPRING_2025_TEACHING_CSV = "spring_2025_lecturer_courses.csv"
+FALL_2025_TEACHING_CSV = "fall_2025_lecturer_courses_BUS.csv"
 TEACHING_HOURS_PER_SECTION_WEEK = 3
+TEACHING_HOURS_PROJECT_PRACTICUM_WEEK = 1
 ABDC_CANDIDATE_PATHS = (
     BASE_DIR / "ABDC.xlsx",
     BASE_DIR / "ABDC_JQL.xlsx",
@@ -27,20 +31,25 @@ ABDC_CANDIDATE_PATHS = (
 )
 
 
-def resolve_courses_cleaned_path() -> Path:
-    """Teaching roster CSV: next to app.py (Git / Streamlit Cloud) or parent folder (local OneDrive layout)."""
-    beside_app = BASE_DIR / "Courses_cleaned.csv"
-    parent_folder = BASE_DIR.parent / "Courses_cleaned.csv"
-    if beside_app.exists():
-        return beside_app
-    if parent_folder.exists():
-        return parent_folder
-    return beside_app
+def _teaching_csv_candidate_paths(filename: str) -> tuple[Path, Path]:
+    """Next to app.py (deploy) or parent folder (local OneDrive layout)."""
+    return (BASE_DIR / filename, BASE_DIR.parent / filename)
 
 
-def courses_cleaned_search_paths() -> tuple[Path, Path]:
-    """Both standard locations (for error messages)."""
-    return (BASE_DIR / "Courses_cleaned.csv", BASE_DIR.parent / "Courses_cleaned.csv")
+def resolve_teaching_data_file(filename: str) -> Path | None:
+    for p in _teaching_csv_candidate_paths(filename):
+        if p.exists():
+            return p
+    return None
+
+
+def teaching_roster_paths_hint() -> str:
+    """Locations checked for Spring + Fall roster files (for error messages)."""
+    blocks: list[str] = []
+    for fn in (SPRING_2025_TEACHING_CSV, FALL_2025_TEACHING_CSV):
+        a, b = _teaching_csv_candidate_paths(fn)
+        blocks.append(f"{fn}:\n{a}\n{b}")
+    return "\n\n".join(blocks)
 
 st.set_page_config(page_title="NEXUS Dashboard", layout="wide")
 
@@ -842,14 +851,15 @@ def inject_styles() -> None:
           .nexus-table { min-width: 820px; }
         }
 
-        /* Faculty teaching: single scannable table + <details> rows */
+        /* Faculty teaching: same fp palette + Inter as Research Output (.ro-table) */
         .teach-dash-wrap {
           font-family: 'Inter', system-ui, sans-serif;
           width: 100%;
           margin: 4px 0 12px 0;
-          border-radius: 14px;
-          border: 1px solid rgba(212, 226, 239, 0.95);
-          background: rgba(255, 255, 255, 0.78);
+          border-radius: 12px;
+          border: 1px solid var(--fp-neutral-200);
+          background: var(--fp-white);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
           overflow-x: auto;
         }
         .teach-strip {
@@ -857,46 +867,48 @@ def inject_styles() -> None:
           flex-wrap: wrap;
           gap: 0.5rem 2.25rem;
           padding: 0.65rem 1rem;
-          background: rgba(248, 251, 253, 0.98);
-          border-bottom: 1px solid rgba(232, 240, 247, 1);
-          font-size: 0.86rem;
-          color: #5c6d82;
+          background: var(--fp-neutral-50);
+          border-bottom: 1px solid var(--fp-neutral-200);
+          font-size: 13px;
+          color: var(--fp-neutral-700);
           line-height: 1.45;
         }
-        .teach-strip strong { color: #0f1f2e; font-weight: 600; }
+        .teach-strip strong { color: var(--fp-primary-900); font-weight: 600; }
         /* Div-based grid only (no <table>): avoids broken layout when grid is applied inside table rows */
         .teach-faculty-shell {
           width: 100%;
           min-width: 0;
-          font-size: 0.9rem;
+          font-size: 14px;
         }
         .teach-faculty-body {
           width: 100%;
         }
-        /* Shared grid: header row + each <summary> — identical tracks + same per-cell padding */
+        /* Shared grid: header + rows — no column gutters (reads as one table) */
         .teach-faculty-cols {
           display: grid;
-          /* Balanced columns: avoid one huge Name track + cramped metrics (old 2fr ate all space) */
           grid-template-columns:
-            minmax(11rem, 0.54fr)
-            minmax(5.5rem, 0.46fr)
-            minmax(9.75rem, 0.58fr)
-            minmax(4.75rem, 0.32fr);
-          column-gap: 0.5rem;
-          align-items: start;
-          justify-items: start;
+            minmax(9.5rem, 0.42fr)
+            minmax(4rem, 0.18fr)
+            minmax(6.25rem, 0.22fr)
+            minmax(5rem, 0.18fr)
+            minmax(3.75rem, 0.14fr);
+          column-gap: 0;
+          row-gap: 0;
+          align-items: stretch;
+          justify-items: stretch;
           box-sizing: border-box;
           width: 100%;
         }
         .teach-faculty-header.teach-faculty-cols > div {
           padding: 0.5rem 0.75rem;
-          font-size: 0.68rem;
+          font-size: 12px;
           font-weight: 600;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
           text-transform: uppercase;
-          color: #7a8b9e;
-          background: rgba(255, 255, 255, 0.98);
-          border-bottom: 1px solid #e4edf4;
+          color: var(--fp-primary-700);
+          background: var(--fp-primary-50);
+          border-bottom: 2px solid var(--fp-primary-300);
+          border-right: 1px solid var(--fp-primary-200);
           text-align: left;
           white-space: nowrap;
           overflow: hidden;
@@ -906,40 +918,71 @@ def inject_styles() -> None:
           width: 100%;
         }
         .teach-faculty-header.teach-faculty-cols > div:nth-child(2),
-        .teach-faculty-header.teach-faculty-cols > div:nth-child(3) {
+        .teach-faculty-header.teach-faculty-cols > div:nth-child(3),
+        .teach-faculty-header.teach-faculty-cols > div:nth-child(4) {
           text-align: left;
         }
-        .teach-faculty-header.teach-faculty-cols > div:nth-child(3) {
+        .teach-faculty-header.teach-faculty-cols > div:nth-child(3),
+        .teach-faculty-header.teach-faculty-cols > div:nth-child(4) {
           white-space: normal;
-          line-height: 1.25;
+          line-height: 1.2;
         }
         .teach-faculty-header.teach-faculty-cols > div:last-child {
+          border-right: none;
           text-align: right;
+        }
+        .teach-season-cell {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+          width: 100%;
+          justify-self: stretch;
+        }
+        .teach-fall-delta-note {
+          font-size: 11px;
+          font-weight: 400;
+          color: var(--fp-neutral-500);
+          text-transform: lowercase;
+          line-height: 1.25;
+          letter-spacing: 0.01em;
         }
         details.teach-faccard {
           margin: 0;
-          border-bottom: 1px solid #eef2f7;
+          border-bottom: 1px solid var(--fp-neutral-200);
         }
         details.teach-faccard:last-of-type { border-bottom: none; }
         details.teach-faccard > summary.teach-faculty-cols {
           list-style: none;
           cursor: pointer;
           padding: 0;
-          transition: background 0.14s ease;
+          transition: background 0.15s ease, box-shadow 0.15s ease;
         }
-        /* Match header: padding on each grid cell, not on <summary> (was shifting columns) */
+        /* Body cells: flush columns + light dividers (no white gutters) */
         details.teach-faccard > summary.teach-faculty-cols > * {
           padding: 0.5rem 0.75rem;
           box-sizing: border-box;
           min-width: 0;
+          background: var(--fp-white);
+          border-right: 1px solid var(--fp-neutral-200);
+        }
+        details.teach-faccard > summary.teach-faculty-cols > *:last-child {
+          border-right: none;
         }
         details.teach-faccard > summary.teach-faculty-cols::-webkit-details-marker { display: none; }
-        details.teach-faccard > summary.teach-faculty-cols:hover { background: rgba(11, 138, 120, 0.045); }
-        details.teach-faccard[open] > summary.teach-faculty-cols { background: rgba(244, 249, 252, 0.95); }
+        details.teach-faccard > summary.teach-faculty-cols:hover > * {
+          background: var(--fp-primary-50) !important;
+        }
+        details.teach-faccard > summary.teach-faculty-cols:hover {
+          box-shadow: inset 3px 0 0 0 var(--fp-primary-500);
+        }
+        details.teach-faccard[open] > summary.teach-faculty-cols > * {
+          background: var(--fp-neutral-50);
+        }
         .teach-col-name {
           font-weight: 600;
-          color: #0f1f2e;
-          font-size: 0.93rem;
+          color: var(--fp-neutral-900);
+          font-size: 14px;
           line-height: 1.35;
           text-align: left;
           width: 100%;
@@ -950,50 +993,26 @@ def inject_styles() -> None:
         }
         .teach-col-num {
           font-weight: 600;
-          color: #3a4d62;
+          color: var(--fp-neutral-900);
           font-variant-numeric: tabular-nums;
-          font-size: 0.9rem;
+          font-size: 14px;
           text-align: left;
-          width: 100%;
-          justify-self: stretch;
-        }
-        .teach-hours-cell {
-          display: flex;
-          flex-direction: column;
-          align-items: stretch;
-          justify-content: flex-start;
-          gap: 4px;
           width: 100%;
           justify-self: stretch;
         }
         .teach-hours-val {
           font-weight: 600;
-          color: #3a4d62;
+          color: var(--fp-primary-700);
           font-variant-numeric: tabular-nums;
-          font-size: 0.88rem;
+          font-size: 13px;
           text-align: left;
           align-self: flex-start;
           width: 100%;
         }
-        .teach-hours-bar-bg {
-          height: 5px;
-          border-radius: 3px;
-          background: #e8eff5;
-          overflow: hidden;
-          width: 100%;
-          align-self: stretch;
-          flex-shrink: 0;
-        }
-        .teach-hours-bar-fill {
-          height: 100%;
-          border-radius: 3px;
-          background: linear-gradient(90deg, #0b8a78, #4bc4a8);
-          opacity: 0.55;
-        }
         .teach-col-toggle {
           text-align: right;
-          font-size: 0.72rem;
-          color: #8a9bab;
+          font-size: 12px;
+          color: var(--fp-neutral-500);
           user-select: none;
           font-weight: 500;
           width: 100%;
@@ -1004,28 +1023,29 @@ def inject_styles() -> None:
         details.teach-faccard[open] .teach-toggle-hint-closed { display: none; }
         details.teach-faccard:not([open]) .teach-toggle-hint-closed { display: inline; }
         .teach-nested {
-          padding: 0.3rem 0.65rem 0.65rem 0.85rem;
-          margin: 0 0.45rem 0.35rem 0.85rem;
-          border-left: 2px solid #e4edf4;
-          background: rgba(252, 253, 255, 0.98);
-          font-size: 0.78rem;
-          color: #6b7c90;
+          padding: 0.35rem 0.75rem 0.75rem 1rem;
+          margin: 0 0.5rem 0.4rem 0.75rem;
+          border-left: 2px solid var(--fp-primary-200);
+          background: var(--fp-white);
+          font-size: 13px;
+          color: var(--fp-neutral-700);
           line-height: 1.48;
         }
         .teach-nested-line {
-          padding: 0.18rem 0;
-          font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
-          font-size: 0.76rem;
+          padding: 0.2rem 0;
+          font-family: 'Inter', system-ui, sans-serif;
+          font-size: 13px;
+          color: var(--fp-neutral-900);
           letter-spacing: 0.01em;
         }
         details.teach-faccard.teach-load-high > summary {
-          box-shadow: inset 3px 0 0 0 rgba(214, 106, 43, 0.32);
+          box-shadow: inset 3px 0 0 0 var(--accent-2);
         }
         details.teach-faccard.teach-load-mid > summary {
-          box-shadow: inset 3px 0 0 0 rgba(11, 138, 120, 0.22);
+          box-shadow: inset 3px 0 0 0 var(--fp-primary-500);
         }
         details.teach-faccard.teach-load-low > summary {
-          box-shadow: inset 3px 0 0 0 rgba(90, 130, 175, 0.22);
+          box-shadow: inset 3px 0 0 0 var(--fp-primary-300);
         }
 
         /* Slightly wider main column so profile + tables use less side dead space */
@@ -1966,24 +1986,21 @@ def load_landing_kpi_stats() -> dict[str, object]:
                 active_keys.add(nm)
 
     sections = None
-    courses_path = resolve_courses_cleaned_path()
-    if courses_path.exists():
-        try:
-            cdf = pd.read_csv(courses_path, dtype=str, encoding="utf-8-sig", skiprows=1)
-            sections = len(cdf)
-        except (OSError, UnicodeDecodeError, ValueError):
-            try:
-                cdf = pd.read_csv(courses_path, dtype=str, encoding="cp1252", skiprows=1)
-                sections = len(cdf)
-            except (OSError, UnicodeDecodeError, ValueError):
-                sections = None
+    teach_hrs = None
+    sw = teaching_schoolwide_from_files()
+    if sw is not None:
+        sections = sw["sections_total"]
+        teach_hrs = sw["hours_total"]
+        out["teaching_sections_spring"] = sw["sections_spring"]
+        out["teaching_sections_fall"] = sw["sections_fall"]
+        out["teaching_hours_spring"] = sw["hours_spring"]
+        out["teaching_hours_fall"] = sw["hours_fall"]
+        out["teaching_faculty_roster"] = sw["faculty_unique"]
     out["total_faculty"] = len(name_keys) if name_keys else None
     out["total_pubs"] = total_pubs_sum
     out["active_researchers"] = len(active_keys) if active_keys else None
     out["teaching_sections"] = sections
-    out["teaching_hours"] = (
-        int(sections) * TEACHING_HOURS_PER_SECTION_WEEK if sections is not None else None
-    )
+    out["teaching_hours"] = teach_hrs
     return out
 
 
@@ -2009,14 +2026,27 @@ def render_landing() -> None:
     sections = kpi.get("teaching_sections")
     th = kpi.get("teaching_hours")
     teach_hours = _fmt_kpi_num(th) if th is not None else "—"
-    if sections is not None and th is not None:
+    hsp = kpi.get("teaching_hours_spring")
+    hfa = kpi.get("teaching_hours_fall")
+    ssp = kpi.get("teaching_sections_spring")
+    sfa = kpi.get("teaching_sections_fall")
+    if sections is not None and th is not None and all(
+        x is not None for x in (hsp, hfa, ssp, sfa)
+    ):
         teach_sub = (
-            f"{int(sections):,} sections × ~{TEACHING_HOURS_PER_SECTION_WEEK} h/wk · roster estimate"
+            f"{int(th):,} h/wk ({int(hsp):,} spring · {int(hfa):,} fall) · "
+            f"{int(sections):,} sections ({int(ssp):,} spring · {int(sfa):,} fall) · "
+            f"from CSVs · Project/Practicum = {TEACHING_HOURS_PROJECT_PRACTICUM_WEEK} h/wk"
+        )
+    elif sections is not None and th is not None:
+        teach_sub = (
+            f"{int(th):,} est. hrs/wk · {int(sections):,} sections · Spring + Fall 2025 "
+            f"(Project/Practicum = {TEACHING_HOURS_PROJECT_PRACTICUM_WEEK} h/wk)"
         )
     elif sections is not None:
-        teach_sub = f"{int(sections):,} roster sections"
+        teach_sub = f"{int(sections):,} sections (Spring + Fall 2025)"
     else:
-        teach_sub = "Roster not found"
+        teach_sub = "Teaching CSVs not found"
 
     st.markdown(
         """
@@ -2094,17 +2124,83 @@ def render_landing() -> None:
     )
 
 
-def load_courses_cleaned() -> pd.DataFrame | None:
-    """Load Courses_cleaned.csv (blank row + header). Returns None if missing or unreadable."""
-    path = resolve_courses_cleaned_path()
-    if not path.exists():
-        return None
+def _read_teaching_roster_csv(path: Path) -> pd.DataFrame | None:
     for enc in ("utf-8-sig", "cp1252"):
         try:
-            return pd.read_csv(path, dtype=str, encoding=enc, skiprows=1)
+            df = pd.read_csv(path, dtype=str, encoding=enc)
+            return df if not df.empty else None
         except (OSError, UnicodeDecodeError, ValueError):
             continue
     return None
+
+
+def _normalize_teaching_roster_df(df: pd.DataFrame, default_semester: str) -> pd.DataFrame:
+    out = df.copy()
+    out.columns = [str(c).strip() for c in out.columns]
+    drop_cols = [
+        c
+        for c in out.columns
+        if str(c).startswith("Unnamed")
+        and out[c].fillna("").map(lambda x: str(x).strip()).eq("").all()
+    ]
+    if drop_cols:
+        out = out.drop(columns=drop_cols)
+    ren: dict[str, str] = {}
+    if "Lecturer name" in out.columns:
+        ren["Lecturer name"] = "Lecturer"
+    if "Course schedule" in out.columns:
+        ren["Course schedule"] = "Schedule"
+    if ren:
+        out = out.rename(columns=ren)
+    if "Semester" not in out.columns:
+        out = out.copy()
+        out["Semester"] = default_semester
+    else:
+        blank = out["Semester"].fillna("").map(lambda x: str(x).strip()).eq("")
+        if blank.any():
+            out = out.copy()
+            out.loc[blank, "Semester"] = default_semester
+    return out
+
+
+def load_teaching_roster() -> pd.DataFrame | None:
+    """Spring 2025 then Fall 2025 BUS rows; None if no roster files load."""
+    frames: list[pd.DataFrame] = []
+    spring_path = resolve_teaching_data_file(SPRING_2025_TEACHING_CSV)
+    if spring_path:
+        sdf = _read_teaching_roster_csv(spring_path)
+        if sdf is not None:
+            frames.append(_normalize_teaching_roster_df(sdf, "Spring 2025"))
+    fall_path = resolve_teaching_data_file(FALL_2025_TEACHING_CSV)
+    if fall_path:
+        fdf = _read_teaching_roster_csv(fall_path)
+        if fdf is not None:
+            frames.append(_normalize_teaching_roster_df(fdf, "Fall 2025"))
+    if not frames:
+        return None
+    return pd.concat(frames, ignore_index=True)
+
+
+def _apply_teaching_lecturer_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """Same Lecturer cleanup as the teaching page (strip, not-assigned)."""
+    out = df.copy()
+    if "Lecturer" not in out.columns:
+        return out
+    out["Lecturer"] = out["Lecturer"].fillna("").map(lambda x: str(x).strip())
+    out.loc[out["Lecturer"].isin(("", "nan")), "Lecturer"] = "(Not assigned)"
+    return out
+
+
+def load_normalized_teaching_roster_file(filename: str, default_semester: str) -> pd.DataFrame | None:
+    """Load one roster CSV from disk (canonical source for that semester)."""
+    path = resolve_teaching_data_file(filename)
+    if not path:
+        return None
+    raw = _read_teaching_roster_csv(path)
+    if raw is None:
+        return None
+    out = _normalize_teaching_roster_df(raw, default_semester)
+    return _apply_teaching_lecturer_labels(out)
 
 
 def _teaching_language_series(df: pd.DataFrame) -> pd.Series:
@@ -2121,16 +2217,110 @@ def _teaching_unique_languages(series: pd.Series) -> str:
     return ", ".join(vals) if vals else "—"
 
 
+def teaching_weekly_hours_for_schedule(schedule: object) -> int:
+    """Default section ≈ TEACHING_HOURS_PER_SECTION_WEEK; Project / Practicum count as 1 h/wk."""
+    if schedule is None or (isinstance(schedule, float) and pd.isna(schedule)):
+        return TEACHING_HOURS_PER_SECTION_WEEK
+    s = str(schedule).strip().lower()
+    if s in ("project", "practicum"):
+        return TEACHING_HOURS_PROJECT_PRACTICUM_WEEK
+    return TEACHING_HOURS_PER_SECTION_WEEK
+
+
+def teaching_roster_weighted_hours_sum(df: pd.DataFrame | None) -> int:
+    if df is None or df.empty:
+        return 0
+    if "Schedule" not in df.columns:
+        return int(len(df) * TEACHING_HOURS_PER_SECTION_WEEK)
+    return int(df["Schedule"].map(teaching_weekly_hours_for_schedule).sum())
+
+
+def teaching_schoolwide_from_files() -> dict[str, int] | None:
+    """School-wide sections, weighted hours, and faculty count from the two roster CSVs only."""
+    spring = load_normalized_teaching_roster_file(SPRING_2025_TEACHING_CSV, "Spring 2025")
+    fall = load_normalized_teaching_roster_file(FALL_2025_TEACHING_CSV, "Fall 2025")
+    if (spring is None or spring.empty) and (fall is None or fall.empty):
+        return None
+
+    ss = len(spring) if spring is not None and not spring.empty else 0
+    sf = len(fall) if fall is not None and not fall.empty else 0
+    hs = teaching_roster_weighted_hours_sum(spring)
+    hf = teaching_roster_weighted_hours_sum(fall)
+
+    lec_keys: set[str] = set()
+    for d in (spring, fall):
+        if d is None or d.empty or "Lecturer" not in d.columns:
+            continue
+        for v in d["Lecturer"].tolist():
+            t = str(v).strip()
+            if t and t.lower() != "nan":
+                lec_keys.add(t)
+
+    return {
+        "sections_spring": ss,
+        "sections_fall": sf,
+        "sections_total": ss + sf,
+        "hours_spring": hs,
+        "hours_fall": hf,
+        "hours_total": hs + hf,
+        "faculty_unique": len(lec_keys),
+    }
+
+
+def _weighted_hours_subset(sub: pd.DataFrame) -> int:
+    if sub is None or sub.empty:
+        return 0
+    if "Schedule" in sub.columns:
+        return int(sub["Schedule"].map(teaching_weekly_hours_for_schedule).sum())
+    return int(len(sub) * TEACHING_HOURS_PER_SECTION_WEEK)
+
+
+def teaching_fall_delta_vs_spring_note(spring_h: int, fall_h: int) -> str:
+    """Small caption under Fall hours: change in fall vs spring (fall − spring), same person."""
+    if spring_h <= 0 and fall_h <= 0:
+        return ""
+    if spring_h <= 0 and fall_h > 0:
+        return "no spring baseline"
+    delta = int(fall_h) - int(spring_h)
+    if delta > 0:
+        return f"+{delta} vs spring"
+    if delta == 0:
+        return "0 vs spring"
+    return f"{delta} vs spring"
+
+
+def _lecturer_weighted_hours_map(roster: pd.DataFrame | None) -> dict[str, int]:
+    """Lecturer name -> weighted weekly hours for rows that appear only in this file."""
+    if roster is None or roster.empty or "Lecturer" not in roster.columns:
+        return {}
+    out: dict[str, int] = {}
+    for lec, g in roster.groupby("Lecturer", sort=False):
+        key = str(lec).strip()
+        out[key] = _weighted_hours_subset(g)
+    return out
+
+
 def build_teaching_lecturer_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """One row per lecturer: section count, estimated weekly contact hours, languages."""
+    """One row per lecturer: section count from combined roster; Spring/Fall hours from each CSV file."""
+    spring_only = load_normalized_teaching_roster_file(SPRING_2025_TEACHING_CSV, "Spring 2025")
+    fall_only = load_normalized_teaching_roster_file(FALL_2025_TEACHING_CSV, "Fall 2025")
+    spring_hrs = _lecturer_weighted_hours_map(spring_only)
+    fall_hrs = _lecturer_weighted_hours_map(fall_only)
+
     rows: list[dict[str, object]] = []
     for lec, g in df.groupby("Lecturer", sort=False):
         n = len(g)
+        lec_key = str(lec).strip()
+        h_sp = int(spring_hrs.get(lec_key, 0))
+        h_fa = int(fall_hrs.get(lec_key, 0))
+        total = h_sp + h_fa
         rows.append(
             {
                 "Lecturer": lec,
                 "Sections": n,
-                "Est. hours / week": n * TEACHING_HOURS_PER_SECTION_WEEK,
+                "Hours Spring 2025": h_sp,
+                "Hours Fall 2025": h_fa,
+                "Est. hours / week": total,
                 "Languages": _teaching_unique_languages(_teaching_language_series(g)),
             }
         )
@@ -2158,7 +2348,9 @@ def _teaching_summary_display_names() -> dict[str, str]:
     return {
         "Lecturer": "Faculty",
         "Sections": "Classes",
-        "Est. hours / week": "Hours per week (about)",
+        "Hours Spring 2025": "Spring 2025 (h/wk)",
+        "Hours Fall 2025": "Fall 2025 (h/wk)",
+        "Est. hours / week": "Total h/wk",
         "Languages": "Languages",
     }
 
@@ -2250,12 +2442,6 @@ def teaching_faculty_table_html(
     hrs_series = summary["Est. hours / week"].astype(float)
     q33 = float(hrs_series.quantile(0.33)) if len(hrs_series) else 0.0
     q66 = float(hrs_series.quantile(0.66)) if len(hrs_series) else 0.0
-    max_h = (
-        max(int(summary.loc[summary["Lecturer"] == n, "Est. hours / week"].iloc[0]) for n in names)
-        if names
-        else 1
-    )
-    max_h = max(max_h, 1)
 
     parts: list[str] = ['<div class="teach-dash-wrap">']
     if strip_stats is not None:
@@ -2263,8 +2449,8 @@ def teaching_faculty_table_html(
         parts.append(
             '<div class="teach-strip">'
             f"<span><strong>{nf_s}</strong> faculty in this view</span>"
-            f"<span>Avg <strong>{avg_s:.1f}</strong> hrs / week (about)</span>"
-            f"<span>Max load <strong>{mx_s}</strong> hrs / week (about)</span>"
+            f"<span>Avg total <strong>{avg_s:.1f}</strong> h/wk (spring+fall)</span>"
+            f"<span>Max total <strong>{mx_s}</strong> h/wk</span>"
             "</div>"
         )
     parts.extend(
@@ -2273,7 +2459,8 @@ def teaching_faculty_table_html(
         '<div class="teach-faculty-cols teach-faculty-header" role="row">',
         '<div role="columnheader">Name</div>',
         '<div role="columnheader">Classes</div>',
-        '<div role="columnheader">Approx. hrs / week</div>',
+        '<div role="columnheader">Spring 2025<br/><span style="font-weight:500;text-transform:none;letter-spacing:0.02em;">(h/wk est.)</span></div>',
+        '<div role="columnheader">Fall 2025<br/><span style="font-weight:500;text-transform:none;letter-spacing:0.02em;">(h/wk est. · Δ vs spring)</span></div>',
         '<div role="columnheader">Expand</div>',
         "</div>",
         '<div class="teach-faculty-body" role="rowgroup">',
@@ -2284,12 +2471,13 @@ def teaching_faculty_table_html(
         row = summary.loc[summary["Lecturer"] == name].iloc[0]
         n_cls = int(row["Sections"])
         hrs = int(row["Est. hours / week"])
+        h_sp = int(row["Hours Spring 2025"]) if "Hours Spring 2025" in row.index else 0
+        h_fa = int(row["Hours Fall 2025"]) if "Hours Fall 2025" in row.index else 0
         tier = teaching_load_tier_class(hrs, q33, q66)
-        bar_w = min(100.0, 100.0 * float(hrs) / float(max_h))
 
         nm_esc = escape(str(name))
         n_esc = escape(str(n_cls))
-        h_esc = escape(str(hrs))
+        fall_delta_note = teaching_fall_delta_vs_spring_note(h_sp, h_fa)
 
         sub = df.loc[df["Lecturer"] == name].copy()
         if "Schedule" in sub.columns:
@@ -2303,12 +2491,14 @@ def teaching_faculty_table_html(
             f'<span class="teach-col-name" title="{escape(str(name), quote=True)}">{nm_esc}</span>'
         )
         parts.append(f'<span class="teach-col-num">{n_esc}</span>')
-        parts.append('<span class="teach-hours-cell">')
-        parts.append(f'<span class="teach-hours-val">{h_esc}</span>')
-        parts.append(
-            f'<div class="teach-hours-bar-bg"><div class="teach-hours-bar-fill" '
-            f'style="width:{bar_w:.1f}%"></div></div></span>'
-        )
+        parts.append('<span class="teach-season-cell teach-season-spring">')
+        parts.append(f'<span class="teach-hours-val">{escape(str(h_sp))}</span>')
+        parts.append("</span>")
+        parts.append('<span class="teach-season-cell teach-season-fall">')
+        parts.append(f'<span class="teach-hours-val">{escape(str(h_fa))}</span>')
+        if fall_delta_note:
+            parts.append(f'<span class="teach-fall-delta-note">{escape(fall_delta_note)}</span>')
+        parts.append("</span>")
         parts.append('<span class="teach-col-toggle">')
         parts.append('<span class="teach-toggle-hint-closed">Expand</span>')
         parts.append('<span class="teach-toggle-hint-open">Collapse</span>')
@@ -2326,7 +2516,12 @@ def teaching_faculty_table_html(
                 else:
                     sec_disp = escape(f"Section {sec_raw}" if sec_raw else "Section —")
                 d = escape(str(deliv.iloc[idx]) if idx < len(deliv) else "—")
-                parts.append(f'<div class="teach-nested-line">{code} | {title} | {sec_disp} | {d}</div>')
+                sem_bit = ""
+                if "Semester" in sub.columns:
+                    sr = str(r.get("Semester", "")).strip()
+                    if sr and sr.lower() != "nan":
+                        sem_bit = f" | {escape(sr)}"
+                parts.append(f'<div class="teach-nested-line">{code} | {title} | {sec_disp} | {d}{sem_bit}</div>')
         parts.append("</div></details>")
 
     parts.append("</div></div></div>")
@@ -2346,40 +2541,66 @@ def teaching_workload_threshold_counts(hours: pd.Series) -> dict[str, int]:
 
 
 def render_teaching_analytics() -> None:
-    h1, _ = st.columns([0.14, 0.86])
-    with h1:
-        if st.button("Home", key="nav_home_teaching"):
-            go_home()
-    st.title("Teaching load")
+    st.markdown(
+        "<style>.stApp{background:var(--fp-neutral-50)!important;}</style>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <nav class="fp-nav fp-nav-inner fp-nav-sticky ro-research-nav" aria-label="Breadcrumb">
+          <div class="fp-nav-crumb">
+            <a href="?" target="_self">Home</a>
+            <span class="fp-nav-sep">/</span>
+            <span class="fp-nav-current">Teaching load</span>
+          </div>
+        </nav>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <header class="ro-page-header">
+          <h1>Teaching load</h1>
+          <div class="ro-accent-bar" aria-hidden="true"></div>
+        </header>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    cdf = load_courses_cleaned()
+    cdf = load_teaching_roster()
     if cdf is None:
-        p1, p2 = courses_cleaned_search_paths()
         st.warning(
-            "We could not find **Courses_cleaned.csv**. For cloud deploy, place it **next to app.py** in the "
-            "repository. Locally it may also live one folder **above** the app (OneDrive layout)."
+            "We could not find the **Spring** or **Fall** 2025 teaching roster CSVs. Add both files next to "
+            "**app.py** or one folder above (OneDrive layout)."
         )
-        st.code(f"{p1}\n{p2}", language=None)
+        st.code(teaching_roster_paths_hint(), language=None)
         return
     if cdf.empty:
-        st.info("Your course file has no rows yet.")
+        st.info("The teaching roster has no rows yet.")
         return
 
-    required = {"Lecturer", "Course ID", "Title", "Section"}
+    required = {"Lecturer", "Course ID", "Title", "Section", "Semester", "Schedule"}
     if not required.issubset(cdf.columns):
         st.error("The course file is missing columns we need. Please check the header row.")
         st.write("Found columns:", ", ".join(map(str, cdf.columns)))
         return
 
-    df = cdf.copy()
-    df["Lecturer"] = df["Lecturer"].fillna("").map(lambda x: str(x).strip())
-    df.loc[df["Lecturer"].isin(("", "nan")), "Lecturer"] = "(Not assigned)"
+    df = _apply_teaching_lecturer_labels(cdf.copy())
 
     summary = build_teaching_lecturer_summary(df)
 
-    total_sections = int(summary["Sections"].sum())
-    total_hours = int(summary["Est. hours / week"].sum())
-    n_faculty = len(summary)
+    sw_totals = teaching_schoolwide_from_files()
+    if sw_totals is not None:
+        n_faculty = int(sw_totals["faculty_unique"])
+        total_sections = int(sw_totals["sections_total"])
+        total_hours = int(sw_totals["hours_total"])
+        sec_sp, sec_fa = int(sw_totals["sections_spring"]), int(sw_totals["sections_fall"])
+        hrs_sp, hrs_fa = int(sw_totals["hours_spring"]), int(sw_totals["hours_fall"])
+    else:
+        n_faculty = len(summary)
+        total_sections = int(summary["Sections"].sum())
+        total_hours = int(summary["Est. hours / week"].sum())
+        sec_sp = sec_fa = hrs_sp = hrs_fa = None
     hrs_wk = summary["Est. hours / week"].astype(int)
     thr = teaching_workload_threshold_counts(hrs_wk)
     n_tot = thr["total"]
@@ -2393,17 +2614,35 @@ def render_teaching_analytics() -> None:
         c1.metric(
             "Faculty in this list",
             f"{n_faculty:,}",
-            help="Different people who appear in the Lecturer column (including joint lines counted as one label).",
+            help=(
+                "Distinct names in the **Lecturer** column across both CSVs (after the same cleanup as the table). "
+                "Someone in only one semester still counts once."
+            ),
         )
         c2.metric(
-            "Class sections in the file",
+            "Class sections in the files",
             f"{total_sections:,}",
-            help="Total rows in the roster: each row is one section of one course.",
+            help=(
+                "Row counts: spring CSV + fall CSV (one row = one course section in that semester). "
+                + (
+                    f"Breakdown: {sec_sp:,} spring + {sec_fa:,} fall."
+                    if sec_sp is not None
+                    else "Spring + Fall 2025."
+                )
+            ),
         )
         c3.metric(
             "In-class hours per week (whole school, about)",
             f"{total_hours:,}",
-            help=f"Sections × {TEACHING_HOURS_PER_SECTION_WEEK} hours. Rough guide only.",
+            help=(
+                f"Weighted sum from both CSVs: {TEACHING_HOURS_PER_SECTION_WEEK} h/wk per section by default, "
+                f"Project/Practicum = {TEACHING_HOURS_PROJECT_PRACTICUM_WEEK} h/wk. "
+                + (
+                    f"Breakdown: {hrs_sp:,} spring + {hrs_fa:,} fall."
+                    if hrs_sp is not None
+                    else "Spring + Fall rows summed."
+                )
+            ),
         )
         p1, p2, p3 = st.columns(3)
         p1.metric(
@@ -2447,7 +2686,9 @@ def render_teaching_analytics() -> None:
             avg_h = sum(hrs_list) / nf if nf else 0.0
             mx_h = max(hrs_list)
             st.markdown(
-                teaching_faculty_table_html(names, summary, df, strip_stats=(nf, avg_h, mx_h)),
+                '<div class="ro-table-shell" style="margin-top:8px;">'
+                + teaching_faculty_table_html(names, summary, df, strip_stats=(nf, avg_h, mx_h))
+                + "</div>",
                 unsafe_allow_html=True,
             )
 
