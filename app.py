@@ -1054,6 +1054,11 @@ def inject_styles() -> None:
           background: var(--fp-neutral-50);
           border: 1px solid var(--fp-neutral-200);
         }
+        .ro-status-pill.ro-status-na {
+          color: #52525b;
+          background: #f4f4f5;
+          border: 1px solid #d4d4d8;
+        }
         .ro-articles {
           font-size: 13px;
           color: var(--fp-neutral-700);
@@ -2090,6 +2095,12 @@ def _research_clear_filters_callback() -> None:
     st.session_state["_ro_clear_now"] = True
 
 
+def _research_output_na_status_name(name: object) -> bool:
+    """Faculty rows that should show fixed grey \"Non Applicable\" in Research Output (not sufficiency workflow)."""
+    key = re.sub(r"\s+", " ", str(name or "").strip().lower())
+    return key in {"orphanidou yianna", "panayiotou george"}
+
+
 def _research_status_pill_class(status_value: str) -> str:
     """Semantic colours for research table status column."""
     s = str(status_value).strip()
@@ -2099,6 +2110,8 @@ def _research_status_pill_class(status_value: str) -> str:
         return "ro-status-pill ro-status-committee"
     if s == "HOD Consideration":
         return "ro-status-pill ro-status-hod"
+    if s == "Non Applicable":
+        return "ro-status-pill ro-status-na"
     return "ro-status-pill ro-status-default"
 
 
@@ -2636,6 +2649,8 @@ def load_data(cohort: str) -> tuple[pd.DataFrame, pd.DataFrame, Path, Path]:
             "does not fulfill requirements": "Research committee review",
         }
     )
+    # Fixed grey status for specific faculty (manual override; not part of sufficiency workflow).
+    summary_df.loc[summary_df["name"].map(_research_output_na_status_name), "status"] = "Non Applicable"
     ce = summary_df["unic_entity"]
     summary_df["_campus_filter"] = ce.where(ce.str.len() > 0, "Not specified")
 
@@ -3495,7 +3510,12 @@ def render_master_table() -> None:
         unsafe_allow_html=True,
     )
 
-    preferred_status_order = ["Faculty sufficiency", "HOD Consideration", "Research committee review"]
+    preferred_status_order = [
+        "Faculty sufficiency",
+        "HOD Consideration",
+        "Research committee review",
+        "Non Applicable",
+    ]
     faculty_options = ("All", "Full-time", "Part-time")
     if "dashboard_faculty_cohort" not in st.session_state:
         st.session_state.dashboard_faculty_cohort = "All"
@@ -3992,7 +4012,14 @@ def render_profile_page(
     abdc_peer_reviewed_journal_count = (
         int((is_journal & abdc_series.str.upper().str.startswith("ABDC")).sum()) if len(person_pubs) else 0
     )
-
+    ajg_series = (
+        person_pubs["ajg_status"].fillna("").astype(str)
+        if "ajg_status" in person_pubs.columns
+        else pd.Series("", index=person_pubs.index)
+    )
+    # Count journal rows with an explicit ABS AJG tier (e.g. "AJG 4*", "AJG 3"), not "Not in AJG" / list missing.
+    has_ajg_rating = ajg_series.str.match(r"(?i)^AJG\s+(4\*|[1-4])\s*$", na=False)
+    ajg_peer_reviewed_journal_count = int((is_journal & has_ajg_rating).sum()) if len(person_pubs) else 0
     color_domain = ["Journal", "Conference", "Book", "Other"]
     color_range = ["#1565C0", "#42A5F5", "#BBDEFB", "#90CAF9"]
 
@@ -4077,7 +4104,8 @@ def render_profile_page(
               <div class="fp-stats-label">Journal types</div>
               <div class="fp-stats-body">
                 <span class="fp-num">{scopus_peer_reviewed_journal_count}</span> Scopus indexed journals |
-                <span class="fp-num">{abdc_peer_reviewed_journal_count}</span> ABDC journal
+                <span class="fp-num">{abdc_peer_reviewed_journal_count}</span> ABDC journal |
+                <span class="fp-num">{ajg_peer_reviewed_journal_count}</span> AJG journal
               </div>
               <div class="fp-stats-sub">of <span class="fp-num">{j_total}</span> peer-reviewed journals</div>
             </div>
