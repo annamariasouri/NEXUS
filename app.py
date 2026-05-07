@@ -248,6 +248,9 @@ def inject_login_styles() -> None:
         .block-container {
           position: relative;
           z-index: 1;
+          max-width: min(1320px, 94vw) !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
           padding-top: clamp(18vh, 22vh, 26vh) !important;
         }
 
@@ -435,71 +438,64 @@ def render_login_page() -> None:
     """Render the login screen and set session state on successful auth."""
     inject_login_styles()
 
-    outer_left, outer_center, outer_right = st.columns([0.16, 0.68, 0.16])
-    with outer_center:
-        st.markdown('<div class="nexus-row-offset"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="nexus-login-grid">', unsafe_allow_html=True)
-        left_col, right_col = st.columns([1, 1], gap="small")
-        with left_col:
-            st.markdown(
-                """
-                <div class="nexus-left-panel">
-                  <h1>WELCOME</h1>
-                  <h2>ACADEMIC INTELLIGENCE &amp;<br/>RESEARCH ANALYTICS PLATFORM</h2>
-                  <p>
-                    Securely access Nexus to explore faculty productivity, teaching allocation,
-                    and institutional research intelligence through a modern analytics workspace.
-                  </p>
-                </div>
-                """,
-                unsafe_allow_html=True,
+    st.markdown('<div class="nexus-row-offset"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="nexus-login-grid">', unsafe_allow_html=True)
+    left_col, right_col = st.columns([1, 1], gap="small")
+    with left_col:
+        st.markdown(
+            """
+            <div class="nexus-left-panel">
+              <h1>WELCOME</h1>
+              <h2>ACADEMIC INTELLIGENCE &amp;<br/>RESEARCH ANALYTICS PLATFORM</h2>
+              <p>
+                Securely access Nexus to explore faculty productivity, teaching allocation,
+                and institutional research intelligence through a modern analytics workspace.
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with right_col:
+        st.markdown('<div class="nexus-right-panel">', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="nexus-auth-brand">
+              <h1>Log In</h1>
+              <p>Use the credentials sent to you via email to continue</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.form("nexus_login_form", clear_on_submit=False):
+            email_input = st.text_input(
+                "User Name",
+                placeholder="Enter your email",
             )
-
-        with right_col:
-            st.markdown('<div class="nexus-right-panel">', unsafe_allow_html=True)
-            st.markdown(
-                """
-                <div class="nexus-auth-brand">
-                  <h1>Log In</h1>
-                  <p>Use the credentials sent to you via email to continue</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
+            password_input = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Enter your password",
             )
+            submit = st.form_submit_button("Log In", use_container_width=True)
 
-            with st.form("nexus_login_form", clear_on_submit=False):
-                email_input = st.text_input(
-                    "User Name",
-                    placeholder="Enter your email",
-                )
-                password_input = st.text_input(
-                    "Password",
-                    type="password",
-                    placeholder="Enter your password",
-                )
-                submit = st.form_submit_button("Log In", use_container_width=True)
+        if submit:
+            email = email_input.strip().lower()
+            credentials = get_auth_credentials()
+            expected_password = credentials.get(email)
 
-            if submit:
-                email = email_input.strip().lower()
-                credentials = get_auth_credentials()
-                expected_password = credentials.get(email)
-
-                # Constant-time comparison avoids timing attacks on password checks.
-                if expected_password and hmac.compare_digest(password_input, expected_password):
-                    st.session_state[SESSION_AUTHENTICATED] = True
-                    st.session_state[SESSION_AUTH_EMAIL] = email
-                    st.session_state[SESSION_AUTH_NAME] = USER_DISPLAY_NAMES.get(email, email)
-                    set_internal_query_params()
-                    st.rerun()
-                else:
-                    st.error("Invalid email or password. Please try again.")
-            st.markdown("</div>", unsafe_allow_html=True)
+            # Constant-time comparison avoids timing attacks on password checks.
+            if expected_password and hmac.compare_digest(password_input, expected_password):
+                st.session_state[SESSION_AUTHENTICATED] = True
+                st.session_state[SESSION_AUTH_EMAIL] = email
+                st.session_state[SESSION_AUTH_NAME] = USER_DISPLAY_NAMES.get(email, email)
+                set_internal_query_params()
+                st.rerun()
+            else:
+                st.error("Invalid email or password. Please try again.")
         st.markdown("</div>", unsafe_allow_html=True)
-
-    with outer_left:
-        st.empty()
-    with outer_right:
-        st.empty()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_profile_dropdown() -> None:
