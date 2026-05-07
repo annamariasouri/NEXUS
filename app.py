@@ -1,4 +1,7 @@
+from collections.abc import Mapping
 from html import escape
+import hashlib
+import hmac
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -52,6 +55,463 @@ def teaching_roster_paths_hint() -> str:
     return "\n\n".join(blocks)
 
 st.set_page_config(page_title="NEXUS Dashboard", layout="wide")
+
+# Session-state keys used by the Nexus authentication layer.
+SESSION_AUTHENTICATED = "is_authenticated"
+SESSION_AUTH_EMAIL = "auth_user_email"
+SESSION_AUTH_NAME = "auth_user_name"
+AUTH_QP_EMAIL = "auth_user"
+AUTH_QP_SIG = "auth_sig"
+AUTH_QP_LOGOUT = "logout"
+
+# Friendly display names shown in the top-right profile dropdown.
+USER_DISPLAY_NAMES = {
+    "souri.am@unic.ac.cy": "Annamaria Souri",
+    "kokkinaki.a@unic.ac.cy": "Angelika Kokkinaki",
+}
+
+
+def init_auth_state() -> None:
+    """Initialize authentication state once per session."""
+    st.session_state.setdefault(SESSION_AUTHENTICATED, False)
+    st.session_state.setdefault(SESSION_AUTH_EMAIL, "")
+    st.session_state.setdefault(SESSION_AUTH_NAME, "")
+    restore_auth_from_query_params()
+
+
+def get_auth_credentials() -> dict[str, str]:
+    """Load credentials from Streamlit secrets as {lower_email: password}."""
+    auth_block = st.secrets.get("nexus_auth", {})
+    users = auth_block.get("users", []) if isinstance(auth_block, Mapping) else []
+    credentials: dict[str, str] = {}
+    for user in users:
+        if not isinstance(user, Mapping):
+            continue
+        email = str(user.get("email", "")).strip().lower()
+        password = str(user.get("password", ""))
+        if email and password:
+            credentials[email] = password
+    return credentials
+
+
+def _auth_signing_key() -> str:
+    """Resolve HMAC key used to persist auth across URL-based navigation."""
+    auth_block = st.secrets.get("nexus_auth", {})
+    if isinstance(auth_block, Mapping):
+        key = str(auth_block.get("signing_key", "")).strip()
+        if key:
+            return key
+    return "nexus-auth-signing-key"
+
+
+def auth_signature(email: str) -> str:
+    """Build deterministic auth signature for URL persistence."""
+    email_norm = str(email).strip().lower()
+    digest = hmac.new(
+        _auth_signing_key().encode("utf-8"),
+        email_norm.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return digest
+
+
+def set_internal_query_params(**params: str) -> None:
+    """
+    Replace URL query params while preserving auth markers for hard-link navigation.
+    """
+    out: dict[str, str] = {}
+    email = str(st.session_state.get(SESSION_AUTH_EMAIL, "")).strip().lower()
+    if email:
+        out[AUTH_QP_EMAIL] = email
+        out[AUTH_QP_SIG] = auth_signature(email)
+    for key, value in params.items():
+        val = str(value).strip()
+        if val:
+            out[key] = val
+    st.query_params.clear()
+    for key, value in out.items():
+        st.query_params[key] = value
+
+
+def build_internal_href(
+    *,
+    page: str | None = None,
+    cohort: str | None = None,
+    orcid: str | None = None,
+) -> str:
+    """Create internal links that preserve authenticated identity markers."""
+    parts: list[tuple[str, str]] = []
+    if page:
+        parts.append(("page", page))
+    if cohort:
+        parts.append(("cohort", cohort))
+    if orcid:
+        parts.append(("orcid", orcid))
+
+    email = str(st.session_state.get(SESSION_AUTH_EMAIL, "")).strip().lower()
+    if email:
+        parts.append((AUTH_QP_EMAIL, email))
+        parts.append((AUTH_QP_SIG, auth_signature(email)))
+
+    if not parts:
+        return "?"
+    q = "&".join(f"{k}={quote_plus(v)}" for k, v in parts)
+    return f"?{q}"
+
+
+def restore_auth_from_query_params() -> None:
+    """Rehydrate session auth when URL navigation creates a fresh Streamlit session."""
+    if st.session_state.get(SESSION_AUTHENTICATED, False):
+        return
+
+    email = normalize_query_value(st.query_params.get(AUTH_QP_EMAIL, "")).strip().lower()
+    sig = normalize_query_value(st.query_params.get(AUTH_QP_SIG, "")).strip()
+    if not email or not sig:
+        return
+
+    credentials = get_auth_credentials()
+    if email not in credentials:
+        return
+    if not hmac.compare_digest(sig, auth_signature(email)):
+        return
+
+    st.session_state[SESSION_AUTHENTICATED] = True
+    st.session_state[SESSION_AUTH_EMAIL] = email
+    st.session_state[SESSION_AUTH_NAME] = USER_DISPLAY_NAMES.get(email, email)
+
+
+def should_sign_out_from_query_params() -> bool:
+    """Detect explicit logout request from URL query params."""
+    raw = normalize_query_value(st.query_params.get(AUTH_QP_LOGOUT, "")).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def build_logout_href() -> str:
+    """Build URL for navbar sign-out action."""
+    return f"?{AUTH_QP_LOGOUT}=1"
+
+
+def resolve_logo_path() -> Path | None:
+    """Find the Nexus logo from common project locations."""
+    candidates = (
+        BASE_DIR / "assets" / "nexus-logo.png",
+        BASE_DIR / "assets" / "nexus-logo.jpg",
+        BASE_DIR / "assets" / "logo.png",
+        BASE_DIR / "logo.png",
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
+def sign_out() -> None:
+    """Clear auth session and return to login page."""
+    st.session_state[SESSION_AUTHENTICATED] = False
+    st.session_state[SESSION_AUTH_EMAIL] = ""
+    st.session_state[SESSION_AUTH_NAME] = ""
+    st.query_params.clear()
+    st.rerun()
+
+
+def inject_login_styles() -> None:
+    """Inject premium login-page styling for Nexus."""
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        .stApp {
+          background: #edf1f6;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .stApp::before {
+          content: "";
+          position: fixed;
+          top: clamp(16vh, 20vh, 24vh);
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(1320px, 94vw);
+          height: min(68vh, 620px);
+          background:
+            radial-gradient(360px 260px at 16% 92%, rgba(31, 149, 255, 0.45), transparent 64%),
+            radial-gradient(300px 220px at 62% 0%, rgba(60, 145, 255, 0.24), transparent 60%),
+            linear-gradient(135deg, #0e7ad7 0%, #0f67bd 42%, #0b5aaa 100%);
+          border-radius: 22px;
+          border: 1px solid rgba(14, 93, 171, 0.35);
+          box-shadow: 0 25px 45px rgba(15, 34, 62, 0.22);
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        .block-container {
+          position: relative;
+          z-index: 1;
+          padding-top: clamp(18vh, 22vh, 26vh) !important;
+        }
+
+        .nexus-row-offset {
+          height: clamp(1.6rem, 4.6vh, 3rem);
+        }
+
+        .nexus-login-grid {
+          max-width: 980px;
+          margin: 0 auto;
+        }
+
+        .nexus-left-panel {
+          color: #f4f8ff;
+          max-width: 360px;
+          padding-top: 0.6rem;
+          padding-left: clamp(0.4rem, 1.2vw, 1.2rem);
+        }
+
+        .nexus-right-panel {
+          max-width: 470px;
+          margin-left: auto;
+          padding-top: 0.6rem;
+        }
+
+        .nexus-left-panel h1 {
+          margin: 0;
+          font-size: clamp(2rem, 4vw, 2.7rem);
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          color: #ffffff !important;
+          text-shadow: 0 2px 8px rgba(5, 34, 75, 0.28);
+        }
+
+        .nexus-left-panel h2 {
+          margin: 0.7rem 0 0 0;
+          font-size: 1.12rem;
+          line-height: 1.35;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          color: #ffffff !important;
+          text-shadow: 0 1px 6px rgba(5, 34, 75, 0.24);
+        }
+
+        .nexus-left-panel p {
+          margin-top: 1rem;
+          color: #f3f8ff !important;
+          font-size: 0.92rem;
+          line-height: 1.55;
+          text-shadow: 0 1px 4px rgba(5, 34, 75, 0.20);
+        }
+
+        .nexus-auth-brand {
+          text-align: left;
+          margin-bottom: 0.9rem;
+        }
+
+        .nexus-auth-brand h1 {
+          margin: 0;
+          font-size: clamp(2rem, 3.3vw, 2.4rem);
+          font-weight: 700;
+          color: #ffffff !important;
+          letter-spacing: -0.02em;
+          text-shadow: 0 2px 8px rgba(5, 34, 75, 0.24);
+        }
+
+        .nexus-auth-brand p {
+          margin: 0.25rem 0 0.7rem 0;
+          color: #eaf3ff;
+          font-size: 0.75rem;
+          font-weight: 500;
+          text-shadow: 0 1px 4px rgba(5, 34, 75, 0.20);
+        }
+
+        div[data-testid="stForm"] {
+          background: rgba(247, 249, 252, 0.99);
+          border: 1px solid rgba(21, 36, 58, 0.10);
+          border-radius: 18px;
+          padding: 1.05rem 1rem 0.9rem 1rem;
+          box-shadow: 0 18px 32px rgba(18, 32, 54, 0.24);
+          margin-right: 0;
+        }
+
+        div[data-testid="stTextInput"] label p {
+          color: #5b6880 !important;
+          font-weight: 600 !important;
+          font-size: 0.82rem !important;
+        }
+
+        div[data-testid="stTextInput"] input {
+          border-radius: 12px !important;
+          border: 1px solid #d8dde6 !important;
+          background: #ffffff !important;
+          transition: all 0.2s ease !important;
+          min-height: 42px !important;
+        }
+
+        div[data-testid="stTextInput"] input:hover {
+          border-color: #b5c5da !important;
+          box-shadow: 0 3px 12px rgba(20, 53, 97, 0.08) !important;
+        }
+
+        div[data-testid="stTextInput"] input:focus {
+          border-color: #0f66c3 !important;
+          box-shadow: 0 0 0 3px rgba(15, 102, 195, 0.14) !important;
+        }
+
+        div[data-testid="stCheckbox"] label p {
+          color: #5f6d80 !important;
+          font-size: 0.78rem !important;
+          font-weight: 500 !important;
+        }
+
+        div[data-testid="stForm"] button[kind="secondaryFormSubmit"] {
+          border-radius: 12px !important;
+          border: none !important;
+          background: linear-gradient(90deg, #0f63c0, #0f79da) !important;
+          color: #ffffff !important;
+          font-weight: 600 !important;
+          min-height: 44px !important;
+          transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+          box-shadow: 0 10px 20px rgba(14, 96, 183, 0.28) !important;
+        }
+
+        div[data-testid="stForm"] button[kind="secondaryFormSubmit"]:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 14px 24px rgba(14, 96, 183, 0.34) !important;
+        }
+
+        @media (max-width: 980px) {
+          .stApp::before {
+            top: 12vh;
+            height: min(62vh, 520px);
+          }
+          .block-container {
+            padding-top: 13vh !important;
+          }
+          .nexus-row-offset { height: 1rem; }
+          .nexus-left-panel {
+            padding-top: 0.6rem;
+            max-width: 100%;
+          }
+          .nexus-right-panel {
+            max-width: 100%;
+            margin-left: 0;
+            padding-top: 0.3rem;
+          }
+          div[data-testid="stForm"] { margin-right: 0; }
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def inject_profile_styles() -> None:
+    """Polish the top-right user dropdown in authenticated views."""
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stPopover"] button {
+          border-radius: 999px !important;
+          border: 1px solid rgba(19, 40, 67, 0.16) !important;
+          background: rgba(255, 255, 255, 0.92) !important;
+          font-weight: 600 !important;
+          color: #12253c !important;
+          transition: box-shadow 0.16s ease, border-color 0.16s ease !important;
+        }
+        div[data-testid="stPopover"] button:hover {
+          border-color: rgba(19, 40, 67, 0.34) !important;
+          box-shadow: 0 8px 18px rgba(19, 40, 67, 0.14) !important;
+        }
+        div[data-testid="stPopoverContent"] button[kind="secondary"] {
+          border-radius: 10px !important;
+          font-weight: 600 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_login_page() -> None:
+    """Render the login screen and set session state on successful auth."""
+    inject_login_styles()
+
+    outer_left, outer_center, outer_right = st.columns([0.16, 0.68, 0.16])
+    with outer_center:
+        st.markdown('<div class="nexus-row-offset"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="nexus-login-grid">', unsafe_allow_html=True)
+        left_col, right_col = st.columns([1, 1], gap="small")
+        with left_col:
+            st.markdown(
+                """
+                <div class="nexus-left-panel">
+                  <h1>WELCOME</h1>
+                  <h2>ACADEMIC INTELLIGENCE &amp;<br/>RESEARCH ANALYTICS PLATFORM</h2>
+                  <p>
+                    Securely access Nexus to explore faculty productivity, teaching allocation,
+                    and institutional research intelligence through a modern analytics workspace.
+                  </p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with right_col:
+            st.markdown('<div class="nexus-right-panel">', unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="nexus-auth-brand">
+                  <h1>Log In</h1>
+                  <p>Use the credentials sent to you via email to continue</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            with st.form("nexus_login_form", clear_on_submit=False):
+                email_input = st.text_input(
+                    "User Name",
+                    placeholder="Enter your email",
+                )
+                password_input = st.text_input(
+                    "Password",
+                    type="password",
+                    placeholder="Enter your password",
+                )
+                submit = st.form_submit_button("Log In", use_container_width=True)
+
+            if submit:
+                email = email_input.strip().lower()
+                credentials = get_auth_credentials()
+                expected_password = credentials.get(email)
+
+                # Constant-time comparison avoids timing attacks on password checks.
+                if expected_password and hmac.compare_digest(password_input, expected_password):
+                    st.session_state[SESSION_AUTHENTICATED] = True
+                    st.session_state[SESSION_AUTH_EMAIL] = email
+                    st.session_state[SESSION_AUTH_NAME] = USER_DISPLAY_NAMES.get(email, email)
+                    set_internal_query_params()
+                    st.rerun()
+                else:
+                    st.error("Invalid email or password. Please try again.")
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with outer_left:
+        st.empty()
+    with outer_right:
+        st.empty()
+
+
+def render_profile_dropdown() -> None:
+    """Show authenticated user menu with a sign-out action."""
+    spacer, menu_col = st.columns([9, 1.6])
+    with spacer:
+        st.empty()
+    with menu_col:
+        user_name = st.session_state.get(SESSION_AUTH_NAME, "User")
+        with st.popover(user_name, use_container_width=True):
+            if st.button("Sign Out", use_container_width=True):
+                sign_out()
 
 
 def inject_styles() -> None:
@@ -626,10 +1086,18 @@ def inject_styles() -> None:
           display: flex;
           flex-wrap: wrap;
           align-items: center;
-          justify-content: center;
+          justify-content: space-between;
           gap: 0.25rem 1.25rem;
           font-size: 13px;
           font-weight: 500;
+        }
+        .nexus-nav-links {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: center;
+          gap: 0.25rem 1.25rem;
+          margin: 0 auto;
         }
         .nexus-nav a {
           color: var(--fp-neutral-500);
@@ -647,6 +1115,15 @@ def inject_styles() -> None:
           font-weight: 600;
         }
         .nexus-nav-sep { color: var(--fp-neutral-200); user-select: none; }
+        .nexus-nav-signout {
+          color: var(--fp-neutral-700) !important;
+          font-weight: 600 !important;
+          margin-right: 0.55rem;
+        }
+        .nexus-nav-signout:hover {
+          color: var(--fp-primary-700) !important;
+          background: var(--fp-primary-50) !important;
+        }
 
         .nexus-hero-v2 {
           position: relative;
@@ -1064,15 +1541,17 @@ def inject_styles() -> None:
           padding-right: 20px;
         }
         .fp-nav {
-          width: 100%;
+          width: auto;
           min-height: 56px;
           background: var(--fp-white);
           border-bottom: 1px solid var(--fp-neutral-200);
           box-shadow: 0 1px 0 rgba(0,0,0,0.04);
           font-family: 'Inter', system-ui, sans-serif;
+          border-radius: 12px;
+          overflow: hidden;
         }
         .fp-nav-inner {
-          max-width: min(1420px, 99vw);
+          max-width: min(1320px, 98vw);
           margin: 0 auto;
           padding: 0 24px;
           height: 56px;
@@ -1086,11 +1565,11 @@ def inject_styles() -> None:
           position: sticky;
           top: 0;
           z-index: 50;
-          background: var(--fp-white) !important;
-          margin-left: -2.75rem;
-          margin-right: -2.75rem;
-          padding-left: 2.75rem;
-          padding-right: 2.75rem;
+          background: transparent !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
         }
         /* Analytics card wrapper around the two-column chart block */
         .element-container:has(.fp-analytics-marker)
@@ -1174,6 +1653,20 @@ def inject_styles() -> None:
         .fp-nav-crumb a:hover { color: var(--fp-primary-700); }
         .fp-nav-sep { color: var(--fp-neutral-200); margin: 0 6px; }
         .fp-nav-current { color: var(--fp-primary-700); font-weight: 600; }
+        .fp-nav-action a {
+          font-size: 13px;
+          color: var(--fp-neutral-700);
+          text-decoration: none;
+          font-weight: 600;
+          border-radius: 8px;
+          padding: 0.35rem 0.55rem;
+          margin-right: 0.3rem;
+          transition: color 0.15s ease, background 0.15s ease;
+        }
+        .fp-nav-action a:hover {
+          color: var(--fp-primary-700);
+          background: var(--fp-primary-50);
+        }
         .fp-header {
           display: grid;
           grid-template-columns: 2fr 1fr;
@@ -1941,14 +2434,13 @@ def get_app_page() -> str:
 
 
 def go_home() -> None:
-    st.query_params.clear()
+    set_internal_query_params()
     st.rerun()
 
 
 def back_to_research_table() -> None:
     """Leave profile view and return to the publications table (research workspace)."""
-    clear_profile_query_params()
-    st.query_params["page"] = "research"
+    set_internal_query_params(page="research")
     st.rerun()
 
 
@@ -2048,17 +2540,26 @@ def render_landing() -> None:
     else:
         teach_sub = "Teaching CSVs not found"
 
+    home_href = build_internal_href()
+    research_href = build_internal_href(page="research")
+    teaching_href = build_internal_href(page="teaching")
+    analytics_href = build_internal_href(page="analytics")
+    logout_href = build_logout_href()
+
     st.markdown(
-        """
+        f"""
         <nav class="nexus-nav-shell" aria-label="Primary">
           <div class="nexus-nav">
-            <a class="nexus-nav-active" href="?" target="_self">Dashboard</a>
-            <span class="nexus-nav-sep">·</span>
-            <a href="?page=research" target="_self">Publications</a>
-            <span class="nexus-nav-sep">·</span>
-            <a href="?page=teaching" target="_self">Teaching load</a>
-            <span class="nexus-nav-sep">·</span>
-            <a href="?page=analytics" target="_self">Analytics</a>
+            <div class="nexus-nav-links">
+              <a class="nexus-nav-active" href="{escape(home_href, quote=True)}" target="_self">Dashboard</a>
+              <span class="nexus-nav-sep">·</span>
+              <a href="{escape(research_href, quote=True)}" target="_self">Publications</a>
+              <span class="nexus-nav-sep">·</span>
+              <a href="{escape(teaching_href, quote=True)}" target="_self">Teaching load</a>
+              <span class="nexus-nav-sep">·</span>
+              <a href="{escape(analytics_href, quote=True)}" target="_self">Analytics</a>
+            </div>
+            <a class="nexus-nav-signout" href="{escape(logout_href, quote=True)}" target="_self">Sign out</a>
           </div>
         </nav>
         <div class="nexus-hero-v2">
@@ -2071,17 +2572,17 @@ def render_landing() -> None:
           </div>
         </div>
         <div class="nexus-module-grid">
-          <a class="nexus-module" href="?page=research" target="_self">
+          <a class="nexus-module" href="{escape(research_href, quote=True)}" target="_self">
             <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/><circle cx="17" cy="7" r="1.2" fill="currentColor" stroke="none"/></svg></span>
             <span class="nexus-module-title">Research Output</span>
             <span class="nexus-module-desc">Publications (Scopus + ORCID), and faculty sufficiency views.</span>
           </a>
-          <a class="nexus-module" href="?page=teaching" target="_self">
+          <a class="nexus-module" href="{escape(teaching_href, quote=True)}" target="_self">
             <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5v12l8-2.5 8 2.5V6.5"/><path d="M12 4v12"/><path d="M4 6.5L12 4l8 2.5"/></svg></span>
             <span class="nexus-module-title">Teaching load</span>
             <span class="nexus-module-desc">Sections per lecturer, estimated weekly contact hours, and workload chart.</span>
           </a>
-          <a class="nexus-module" href="?page=analytics" target="_self">
+          <a class="nexus-module" href="{escape(analytics_href, quote=True)}" target="_self">
             <span class="nexus-module-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.2"/><circle cx="17" cy="6" r="2.2"/><circle cx="14" cy="17" r="2.2"/><path d="M8.5 9.5 12 15M15.5 8 12 15M9 8l8-1"/></svg></span>
             <span class="nexus-module-title">Institutional Analytics</span>
             <span class="nexus-module-desc">Aggregated faculty insight and leadership dashboards (in development).</span>
@@ -2545,14 +3046,17 @@ def render_teaching_analytics() -> None:
         "<style>.stApp{background:var(--fp-neutral-50)!important;}</style>",
         unsafe_allow_html=True,
     )
+    home_href = build_internal_href()
+    logout_href = build_logout_href()
     st.markdown(
-        """
+        f"""
         <nav class="fp-nav fp-nav-inner fp-nav-sticky ro-research-nav" aria-label="Breadcrumb">
           <div class="fp-nav-crumb">
-            <a href="?" target="_self">Home</a>
+            <a href="{escape(home_href, quote=True)}" target="_self">Home</a>
             <span class="fp-nav-sep">/</span>
             <span class="fp-nav-current">Teaching load</span>
           </div>
+          <div class="fp-nav-action"><a href="{escape(logout_href, quote=True)}" target="_self">Sign out</a></div>
         </nav>
         """,
         unsafe_allow_html=True,
@@ -2707,14 +3211,17 @@ def render_master_table() -> None:
         "<style>.stApp{background:var(--fp-neutral-50)!important;}</style>",
         unsafe_allow_html=True,
     )
+    home_href = build_internal_href()
+    logout_href = build_logout_href()
     st.markdown(
-        """
+        f"""
         <nav class="fp-nav fp-nav-inner fp-nav-sticky ro-research-nav" aria-label="Breadcrumb">
           <div class="fp-nav-crumb">
-            <a href="?" target="_self">Home</a>
+            <a href="{escape(home_href, quote=True)}" target="_self">Home</a>
             <span class="fp-nav-sep">/</span>
             <span class="fp-nav-current">Research Output</span>
           </div>
+          <div class="fp-nav-action"><a href="{escape(logout_href, quote=True)}" target="_self">Sign out</a></div>
         </nav>
         """,
         unsafe_allow_html=True,
@@ -2948,15 +3455,19 @@ def render_master_table() -> None:
         status_value = str(row["status"])
         orcid_cell = str(row["orcid"]).strip()
         orcid_for_url = _normalize_orcid_from_cell(orcid_cell) or orcid_cell
-        encoded_orcid = quote_plus(orcid_for_url)
         ue = str(row.get("unic_entity", "")).strip()
         entity_text = escape(ue) if ue else "—"
         row_cohort_key = str(row.get("_cohort_key", "full")).strip() or "full"
+        profile_href = build_internal_href(
+            page="research",
+            cohort=row_cohort_key,
+            orcid=orcid_for_url,
+        )
         rows_html.append(
             "".join(
                 [
                     "<tr>",
-                    f"<td style=\"width:15%;\"><a class=\"ro-name-link\" href=\"?page=research&cohort={row_cohort_key}&orcid={encoded_orcid}\" target=\"_self\">{escape(str(row['name']))}</a></td>",
+                    f"<td style=\"width:15%;\"><a class=\"ro-name-link\" href=\"{escape(profile_href, quote=True)}\" target=\"_self\">{escape(str(row['name']))}</a></td>",
                     f"<td style=\"width:10%;\"><span class=\"ro-entity-pill\">{entity_text}</span></td>",
                     f"<td style=\"width:10%;\">{escape(str(row['research_field'])) or '—'}</td>",
                     f"<td style=\"width:30%;\">{format_recent_publications_ro(row['recent_3_articles'])}</td>",
@@ -3078,18 +3589,21 @@ def render_profile_page(
     cohort_q = str(cohort).strip().lower()
     if cohort_q not in ("full", "part"):
         cohort_q = "full"
-    research_href = f"?page=research&cohort={cohort_q}"
+    home_href = build_internal_href()
+    research_href = build_internal_href(page="research", cohort=cohort_q)
+    logout_href = build_logout_href()
 
     st.markdown(
         f"""
         <nav class="fp-nav fp-nav-inner fp-nav-sticky" aria-label="Breadcrumb">
           <div class="fp-nav-crumb">
-            <a href="?" target="_self">Home</a>
+            <a href="{escape(home_href, quote=True)}" target="_self">Home</a>
             <span class="fp-nav-sep">/</span>
             <a href="{escape(research_href, quote=True)}" target="_self">Research output</a>
             <span class="fp-nav-sep">/</span>
             <span class="fp-nav-current">Faculty profile</span>
           </div>
+          <div class="fp-nav-action"><a href="{escape(logout_href, quote=True)}" target="_self">Sign out</a></div>
         </nav>
         """,
         unsafe_allow_html=True,
@@ -3360,6 +3874,16 @@ def render_profile_page(
     """
     st.markdown(table_html, unsafe_allow_html=True)
 
+
+init_auth_state()
+
+if should_sign_out_from_query_params():
+    sign_out()
+
+# Always gate app content behind the login screen.
+if not st.session_state.get(SESSION_AUTHENTICATED, False):
+    render_login_page()
+    st.stop()
 
 inject_styles()
 
