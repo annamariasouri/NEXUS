@@ -222,8 +222,31 @@ def inject_login_styles() -> None:
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         .stApp {
-          background: #edf1f6;
+          background:
+            radial-gradient(circle 210px at 7% 16%, #6ab8ff 0 58%, transparent 59%),
+            radial-gradient(circle 140px at 24% 88%, #2d8ff1 0 58%, transparent 59%),
+            radial-gradient(circle 260px at 92% 14%, #4ca3ff 0 58%, transparent 59%),
+            radial-gradient(circle 170px at 83% 84%, #1e78df 0 58%, transparent 59%),
+            radial-gradient(circle 96px at 63% 90%, #8bc8ff 0 58%, transparent 59%),
+            radial-gradient(circle 70px at 14% 46%, #9fd2ff 0 58%, transparent 59%),
+            radial-gradient(circle 56px at 29% 18%, #5ea8ff 0 58%, transparent 59%),
+            radial-gradient(circle 62px at 76% 18%, #3e8eea 0 58%, transparent 59%),
+            radial-gradient(circle 44px at 88% 33%, #79bbff 0 58%, transparent 59%),
+            radial-gradient(circle 58px at 79% 68%, #287ad8 0 58%, transparent 59%),
+            radial-gradient(circle 48px at 59% 84%, #66b0ff 0 58%, transparent 59%),
+            #edf1f6;
           font-family: 'Inter', sans-serif;
+        }
+
+        .stApp::after {
+          content: "";
+          position: fixed;
+          inset: 0;
+          background:
+            radial-gradient(circle at 1px 1px, rgba(38, 93, 166, 0.22) 1.2px, transparent 0);
+          background-size: 22px 22px;
+          pointer-events: none;
+          z-index: 0;
         }
 
         .stApp::before {
@@ -235,9 +258,9 @@ def inject_login_styles() -> None:
           width: min(1320px, 94vw);
           height: min(68vh, 620px);
           background:
-            radial-gradient(360px 260px at 16% 92%, rgba(31, 149, 255, 0.45), transparent 64%),
-            radial-gradient(300px 220px at 62% 0%, rgba(60, 145, 255, 0.24), transparent 60%),
-            linear-gradient(135deg, #0e7ad7 0%, #0f67bd 42%, #0b5aaa 100%);
+            radial-gradient(460px 280px at 16% 92%, rgba(61, 167, 255, 0.36), transparent 64%),
+            radial-gradient(360px 240px at 72% 4%, rgba(112, 186, 255, 0.22), transparent 60%),
+            linear-gradient(140deg, #1f86e1 0%, #1a6fc8 42%, #145cb2 78%, #0f4f9f 100%);
           border-radius: 22px;
           border: 1px solid rgba(14, 93, 171, 0.35);
           box-shadow: 0 25px 45px rgba(15, 34, 62, 0.22);
@@ -356,6 +379,31 @@ def inject_login_styles() -> None:
         div[data-testid="stTextInput"] input:focus {
           border-color: #0f66c3 !important;
           box-shadow: 0 0 0 3px rgba(15, 102, 195, 0.14) !important;
+          outline: none !important;
+        }
+
+        div[data-testid="stTextInput"] [data-baseweb="input"] {
+          border-color: #d8dde6 !important;
+          box-shadow: none !important;
+        }
+
+        div[data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
+          border-color: #0f66c3 !important;
+          box-shadow: 0 0 0 3px rgba(15, 102, 195, 0.14) !important;
+        }
+
+        div[data-testid="stTextInput"] [aria-invalid="true"] {
+          border-color: #0f66c3 !important;
+          box-shadow: 0 0 0 3px rgba(15, 102, 195, 0.14) !important;
+        }
+
+        /* Hide Streamlit's helper hint under focused inputs inside forms. */
+        div[data-testid="InputInstructions"] {
+          display: none !important;
+        }
+
+        div[data-testid="stAlert"] p {
+          color: #ffffff !important;
         }
 
         div[data-testid="stCheckbox"] label p {
@@ -470,7 +518,7 @@ def render_login_page() -> None:
 
         with st.form("nexus_login_form", clear_on_submit=False):
             email_input = st.text_input(
-                "User Name",
+                "Unic Email",
                 placeholder="Enter your email",
             )
             password_input = st.text_input(
