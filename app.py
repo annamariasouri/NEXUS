@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Mapping
 from html import escape
 import hashlib
@@ -31,6 +32,15 @@ ABDC_CANDIDATE_PATHS = (
     BASE_DIR / "ABDC_journal_list.csv",
     BASE_DIR / "data" / "ABDC.xlsx",
     BASE_DIR / "data" / "ABDC.csv",
+)
+AJG_CANDIDATE_PATHS = (
+    BASE_DIR / "bace4e81-811b-46ac-a842-442ad5e70d8f_20250722.pdf",
+    BASE_DIR.parent / "bace4e81-811b-46ac-a842-442ad5e70d8f_20250722.pdf",
+    BASE_DIR / "Journal List 2026_final.pdf",
+    BASE_DIR / "AJG.csv",
+    BASE_DIR / "ajg.csv",
+    BASE_DIR / "data" / "AJG.csv",
+    BASE_DIR.parent / "Journal List 2026_final.pdf",
 )
 
 
@@ -1933,6 +1943,7 @@ def inject_styles() -> None:
           border-bottom: 1px solid var(--fp-neutral-200);
         }
         table.fp-pubs-table thead th.fp-col-abdc,
+        table.fp-pubs-table thead th.fp-col-ajg,
         table.fp-pubs-table thead th.fp-col-year,
         table.fp-pubs-table thead th.fp-col-scopus { text-align: center; }
         table.fp-pubs-table thead th.fp-col-doi { text-align: right; }
@@ -1951,13 +1962,14 @@ def inject_styles() -> None:
           background: var(--fp-primary-50) !important;
           box-shadow: inset 3px 0 0 0 var(--fp-primary-500);
         }
-        table.fp-pubs-table .fp-col-title { width: 40%; max-width: 0; }
-        table.fp-pubs-table .fp-col-type { width: 10%; text-align: center; }
-        table.fp-pubs-table .fp-col-source { width: 25%; }
-        table.fp-pubs-table .fp-col-abdc { width: 8%; text-align: center; }
-        table.fp-pubs-table .fp-col-year { width: 7%; text-align: center; font-variant-numeric: tabular-nums; }
+        table.fp-pubs-table .fp-col-title { width: 33%; max-width: 0; }
+        table.fp-pubs-table .fp-col-type { width: 8%; text-align: center; }
+        table.fp-pubs-table .fp-col-source { width: 20%; }
         table.fp-pubs-table .fp-col-scopus { width: 5%; text-align: center; }
-        table.fp-pubs-table .fp-col-doi { width: 10%; text-align: right; }
+        table.fp-pubs-table .fp-col-abdc { width: 8%; text-align: center; }
+        table.fp-pubs-table .fp-col-ajg { width: 8%; text-align: center; }
+        table.fp-pubs-table .fp-col-year { width: 7%; text-align: center; font-variant-numeric: tabular-nums; }
+        table.fp-pubs-table .fp-col-doi { width: 11%; text-align: right; }
         .fp-type-pill {
           display: inline-block;
           background: var(--fp-primary-100);
@@ -2152,6 +2164,12 @@ def _abdc_rank_priority(rank: str) -> int:
     return order.get(normalized, 0)
 
 
+def _ajg_rank_priority(rank: str) -> int:
+    normalized = str(rank or "").strip().upper()
+    order = {"4*": 5, "4": 4, "3": 3, "2": 2, "1": 1}
+    return order.get(normalized, 0)
+
+
 def _sheet_with_abdc_data(path: Path) -> str | int:
     if path.suffix.lower() not in {".xlsx", ".xls"}:
         return 0
@@ -2248,6 +2266,196 @@ def classify_abdc_status(
             return f"ABDC {rank}"
         return "ABDC listed"
     return "Not in ABDC"
+
+
+def _parse_abs_guide_table_row(words: list[dict]) -> tuple[str, str] | None:
+    """
+    Parse one table row from the Chartered ABS Academic Journal Guide PDF export.
+
+    Rows are laid out as: Count | Journal Title | Publisher | AJG_2024 | AJG_2021
+    (word positions; title and publisher are separated by a large horizontal gap).
+    """
+    if not words:
+        return None
+    words_sorted = sorted(words, key=lambda w: float(w.get("x0", 0)))
+    rating_idxs = [
+        i
+        for i, w in enumerate(words_sorted)
+        if re.match(r"^(4\*|[1-4])$", str(w.get("text", "")).strip())
+        and float(w.get("x0", 0)) > 400
+    ]
+    if not rating_idxs:
+        return None
+    first_rating = min(rating_idxs)
+    left = words_sorted[:first_rating]
+    if not left or not re.match(r"^\d+$", str(left[0].get("text", "")).strip()):
+        return None
+    body = left[1:]
+    if len(body) < 2:
+        return None
+    best_split, best_gap = 1, -1.0
+    for i in range(1, len(body)):
+        gap = float(body[i]["x0"]) - float(body[i - 1]["x1"])
+        if gap > best_gap:
+            best_gap = gap
+            best_split = i
+    title = " ".join(str(w.get("text", "")).strip() for w in body[:best_split]).strip()
+    if not title:
+        return None
+    rating_tokens: list[str] = []
+    for j in range(first_rating, len(words_sorted)):
+        tok = str(words_sorted[j].get("text", "")).strip()
+        if re.match(r"^(4\*|[1-4])$", tok):
+            rating_tokens.append(tok)
+    if not rating_tokens:
+        return None
+    # First rating column is AJG_2024 (current guide rating).
+    return title, rating_tokens[0]
+
+
+@st.cache_data(show_spinner=False)
+def load_ajg_lookup() -> tuple[dict[str, str], str]:
+    """
+    Load AJG ratings from known local files.
+    Supports:
+    - CSV with journal/rating columns
+    - Chartered ABS Academic Journal Guide PDF (AJG_2024 columns; word-position parsing)
+    - Legacy department list PDF (`Journal List 2026_final.pdf`, line-based AIS layout)
+    """
+    ajg_path: Path | None = None
+    for candidate in AJG_CANDIDATE_PATHS:
+        if candidate.exists():
+            ajg_path = candidate
+            break
+    if ajg_path is None:
+        return {}, ""
+
+    lookup: dict[str, str] = {}
+    suffix = ajg_path.suffix.lower()
+
+    if suffix == ".csv":
+        df = pd.read_csv(ajg_path, dtype=str).fillna("")
+        title_col = _pick_column(
+            df.columns.tolist(),
+            ("journal", "journal title", "title", "source", "source title", "journal name"),
+        )
+        rank_col = _pick_column(
+            df.columns.tolist(),
+            ("ajg", "rating", "rank", "ajg rating"),
+        )
+        if title_col is None or rank_col is None:
+            return {}, str(ajg_path)
+        for _, row in df.iterrows():
+            title_norm = normalize_source_title_for_match(row.get(title_col, ""))
+            if not title_norm:
+                continue
+            rank = str(row.get(rank_col, "")).strip().upper().replace(" ", "")
+            if not rank:
+                continue
+            prev = lookup.get(title_norm, "")
+            if _ajg_rank_priority(rank) >= _ajg_rank_priority(prev):
+                lookup[title_norm] = rank
+        return lookup, str(ajg_path)
+
+    if suffix != ".pdf":
+        return {}, str(ajg_path)
+
+    try:
+        import pdfplumber  # type: ignore
+    except Exception:
+        return {}, str(ajg_path)
+
+    with pdfplumber.open(str(ajg_path)) as pdf:
+        sample = "".join((pdf.pages[i].extract_text() or "") for i in range(min(2, len(pdf.pages))))
+        is_abs_guide = "AJG_2024" in sample or "Academic Journal Guide 2024" in sample
+
+        if is_abs_guide:
+            # Page 0 is a summary table; journal rows start from page 1 onward.
+            for page_idx, page in enumerate(pdf.pages):
+                if page_idx == 0:
+                    continue
+                words = page.extract_words(use_text_flow=True) or []
+                by_line: dict[float, list[dict]] = defaultdict(list)
+                for w in words:
+                    by_line[round(float(w.get("top", 0)) / 2) * 2].append(w)
+                for line_words in by_line.values():
+                    parsed = _parse_abs_guide_table_row(line_words)
+                    if not parsed:
+                        continue
+                    title, rank = parsed
+                    title_norm = normalize_source_title_for_match(title)
+                    if not title_norm:
+                        continue
+                    rank = str(rank).strip().upper().replace(" ", "")
+                    prev = lookup.get(title_norm, "")
+                    if _ajg_rank_priority(rank) >= _ajg_rank_priority(prev):
+                        lookup[title_norm] = rank
+            return lookup, str(ajg_path)
+
+        lines: list[str] = []
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            lines.extend(text.splitlines())
+
+    for raw_line in lines:
+        line = str(raw_line).replace("\u00a0", " ").strip()
+        if not line:
+            continue
+        if line.startswith("--"):
+            continue
+        lower_line = line.lower()
+        if any(
+            marker in lower_line
+            for marker in (
+                "journals (within each category",
+                "a* journals",
+                "a+ journals",
+                "a journals economics",
+                "b journals",
+                "other fields",
+                "field other than ajg",
+                "political science ajg",
+                "prestigious journals outside ajg",
+            )
+        ):
+            continue
+
+        # Table rows in this PDF are single-space separated; parse from the right side.
+        row_match = re.match(
+            r"^(?P<title>.+?)\s+(?P<ajg>4\*|[1-4])\s+(?P<ais>\d+(?:\.\d+)?)\s+(?P<points>\d+)(?:\s+\S+)?$",
+            line,
+        )
+        if row_match is None:
+            continue
+        rank = str(row_match.group("ajg")).strip().upper().replace(" ", "")
+
+        title_norm = normalize_source_title_for_match(row_match.group("title"))
+        if not title_norm:
+            continue
+        prev = lookup.get(title_norm, "")
+        if _ajg_rank_priority(rank) >= _ajg_rank_priority(prev):
+            lookup[title_norm] = rank
+
+    return lookup, str(ajg_path)
+
+
+def classify_ajg_status(
+    publication_type: object, source_title: object, ajg_lookup: dict[str, str], ajg_available: bool
+) -> str:
+    pub_type = str(publication_type or "").strip().lower()
+    if pub_type != "journal":
+        return "N/A"
+    if not ajg_available:
+        return "AJG list missing"
+    title_key = normalize_source_title_for_match(source_title)
+    if not title_key:
+        return "Unknown source"
+    if title_key in ajg_lookup:
+        rank = str(ajg_lookup.get(title_key, "")).strip().upper().replace(" ", "")
+        if rank in {"1", "2", "3", "4", "4*"}:
+            return f"AJG {rank}"
+        return "AJG listed"
+    return "Not in AJG"
 
 
 def _normalize_orcid_from_cell(raw: object) -> str:
@@ -3613,6 +3821,8 @@ def render_profile_page(
     person_pubs = person_pubs.sort_values(by=["year", "cover_date"], ascending=[False, False])
     abdc_lookup, abdc_path = load_abdc_lookup()
     abdc_available = bool(abdc_lookup)
+    ajg_lookup, ajg_path = load_ajg_lookup()
+    ajg_available = bool(ajg_lookup)
     if not person_pubs.empty:
         person_pubs["abdc_status"] = person_pubs.apply(
             lambda row: classify_abdc_status(
@@ -3620,6 +3830,15 @@ def render_profile_page(
                 row.get("source_title", ""),
                 abdc_lookup,
                 abdc_available,
+            ),
+            axis=1,
+        )
+        person_pubs["ajg_status"] = person_pubs.apply(
+            lambda row: classify_ajg_status(
+                row.get("publication_type", ""),
+                row.get("source_title", ""),
+                ajg_lookup,
+                ajg_available,
             ),
             axis=1,
         )
@@ -3726,6 +3945,13 @@ def render_profile_page(
             '<p class="fp-abdc-caption" style="max-width:min(1320px,98vw);margin:8px auto 0;padding:0 20px">'
             "ABDC list not found. Add <code>ABDC.xlsx</code> (preferred) or <code>ABDC.csv</code> "
             "in the project root to enable ABDC matching.</p>",
+            unsafe_allow_html=True,
+        )
+    if not ajg_available:
+        st.markdown(
+            '<p class="fp-abdc-caption" style="max-width:min(1320px,98vw);margin:6px auto 0;padding:0 20px">'
+            "AJG list not found. Add the ABS guide PDF (e.g. <code>bace4e81-811b-46ac-a842-442ad5e70d8f_20250722.pdf</code>) "
+            "or <code>AJG.csv</code> in the project root to enable AJG matching.</p>",
             unsafe_allow_html=True,
         )
 
@@ -3887,9 +4113,10 @@ def render_profile_page(
                     f"<td class='fp-col-title'>{escape(str(pub['title'])) or '—'}</td>",
                     f"<td class='fp-col-type'><span class='fp-type-pill'>{ptype}</span></td>",
                     f"<td class='fp-col-source'>{escape(str(pub['source_title'])) or '—'}</td>",
-                    f"<td class='fp-col-abdc'>{escape(str(pub.get('abdc_status', '—')))}</td>",
-                    f"<td class='fp-col-year'>{year_disp}</td>",
                     f"<td class='fp-col-scopus'>{scopus_cell}</td>",
+                    f"<td class='fp-col-abdc'>{escape(str(pub.get('abdc_status', '—')))}</td>",
+                    f"<td class='fp-col-ajg'>{escape(str(pub.get('ajg_status', '—')))}</td>",
+                    f"<td class='fp-col-year'>{year_disp}</td>",
                     f"<td class='fp-col-doi'>{doi_html}</td>",
                     "</tr>",
                 ]
@@ -3901,17 +4128,18 @@ def render_profile_page(
       <table class="fp-pubs-table">
         <thead>
           <tr>
-            <th class="fp-col-title">Title</th>
+            <th class="fp-col-title">Titles</th>
             <th class="fp-col-type">Type</th>
             <th class="fp-col-source">Source</th>
-            <th class="fp-col-abdc">ABDC</th>
-            <th class="fp-col-year">Year</th>
             <th class="fp-col-scopus">Scopus</th>
+            <th class="fp-col-abdc">ABDC</th>
+            <th class="fp-col-ajg">AJG</th>
+            <th class="fp-col-year">Year</th>
             <th class="fp-col-doi">DOI</th>
           </tr>
         </thead>
         <tbody>
-          {''.join(rows_html) if rows_html else '<tr><td colspan="7">No matching publications found.</td></tr>'}
+          {''.join(rows_html) if rows_html else '<tr><td colspan="8">No matching publications found.</td></tr>'}
         </tbody>
       </table>
     </div>
